@@ -101,10 +101,10 @@ sidebar<-dashboardSidebar( width = 250,
               ),
               #Source Code Menu
               
-              menuItem("Source Code", icon=icon("file-code-o"), href="https://github.com/ncss-tech/soil-pit/blob/master/sandbox/john/r11_app/"),
+              menuItem("Source Code", icon=icon("file-code-o"), href="https://github.com/ncss-tech/vitrusa/tree/master/r11_app"),
               
               # Submit Issues on GitHub
-              menuItem("Submit App Issues", icon=icon("bug"), href="https://github.com/ncss-tech/soil-pit/issues"),
+              menuItem("Submit App Issues", icon=icon("bug"), href="https://github.com/ncss-tech/vitrusa/issues"),
               
               #Help Menu
               
