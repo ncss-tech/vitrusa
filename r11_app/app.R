@@ -272,8 +272,9 @@ observeEvent(input$reportsubmit,{
 
     
     withProgress(message="Generating Report", detail="Please Wait", value=1, {
+      download.file("https://raw.githubusercontent.com/ncss-tech/soilReports/master/inst/reports/region11/component_summary_by_project/report.Rmd", file.path(tempdir(), "report.Rmd"))
       
-      includeHTML(rmarkdown::render(input = system.file("reports/region11/component_summary_by_project/report.Rmd", package='soilReports'),
+      includeHTML(rmarkdown::render(input = file.path(tempdir(), "report.Rmd"),
                                     output_dir = tempdir(), 
                                     output_file = "temp.html", 
                                     envir = new.env(),
@@ -301,10 +302,12 @@ observeEvent(input$reportsubmit,{
     filename = function() { input$reportsubmit
       paste("projectreport", Sys.Date(), ".html", sep="")
     },
+    
     content= function(file) {
       withProgress(message = "Preparing Report for Saving", detail = "Please Wait", value = 1, {
+        download.file("https://raw.githubusercontent.com/ncss-tech/soilReports/master/inst/reports/region11/component_summary_by_project/report.Rmd", file.path(tempdir(), "report.Rmd"))
         
-        rmarkdown::render(input = system.file("reports/region11/component_summary_by_project/report.Rmd", package='soilReports'),
+        rmarkdown::render(input = file.path(tempdir(), "report.Rmd"),
                           output_dir = tempdir(), 
                           output_file = file, 
                           envir = new.env(),
