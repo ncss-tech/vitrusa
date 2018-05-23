@@ -93,6 +93,15 @@ sidebar<-dashboardSidebar( width = 250,
                        actionButton("lrpsubmit", "Submit"), p(downloadLink("lrpdownload", "Save a copy of this Report")),br(),p()
               ),
               
+              #Project Staff
+              
+              menuItem("Project Staff", icon=icon("users"),
+                       menuSubItem("Report", tabName="ps", icon=icon("flag-checkered")),
+                       textInput(inputId="psso", label="Enter SSO Symbol -", "11"),
+                       textInput(inputId="pfy", label="Enter Fiscal Year", "2018"),
+                       actionButton("pssubmit", "Submit"),br(),p()
+              ),
+              
               #Interpretations
               
               menuItem("Interpretations", icon=icon("archive"),
@@ -194,6 +203,16 @@ body<-dashboardBody(
       verticalLayout(
         fluidRow(
           box(tags$div(uiOutput("lrp", inline=TRUE, container=span), style="width:100%; overflow-x: scroll"), width=12),
+          box("This application was developed by John Hammerly and Stephen Roecker.", width=12)))
+    ),
+    
+    #Project Staff tab
+    tabItem(
+      tabName="ps",
+      titlePanel("Project Staff"),
+      verticalLayout(
+        fluidRow(
+          box(tags$div(uiOutput("ps", inline=TRUE, container=span), style="width:100%; overflow-x: scroll"), width=12),
           box("This application was developed by John Hammerly and Stephen Roecker.", width=12)))
     ),
     
@@ -303,6 +322,14 @@ observeEvent(input$reportsubmit,{
   })
   output$lrp<-renderUI({ input$lrpsubmit
     withProgress(message="Generating Report", detail="Please Wait", value=1, {includeHTML(rmarkdown::render("r11_long_range_plan.Rmd", html_fragment(number_sections=TRUE, toc=TRUE)))})
+  })
+  
+  #render staff report markdown
+  observeEvent(input$pssubmit,{
+    updateTabItems(session, "tabs", "ps")
+  })
+  output$ps<-renderUI({ input$pssubmit
+    withProgress(message="Generating Report", detail="Please Wait", value=1, {includeHTML(rmarkdown::render("staff_report.Rmd", html_fragment(number_sections=TRUE, toc=TRUE)))})
   })
   
   #render interpretation report markdown

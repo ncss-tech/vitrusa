@@ -73,15 +73,17 @@ om <- function(input, output, session){
     h = merge(h, site(omdata)[c("cokey", "compname", "comppct_r")], by = "cokey", all.x = TRUE)
     
     # plot clay content
-    om_plot<-ggplot(h) +
-      geom_line(aes(y = om_r, x = hzdept_r)) +
-      geom_ribbon(aes(ymin = om_l, ymax = om_h, x = hzdept_r), alpha = 0.2) +
+    om_plot<-ggplot(h, aes(group = 1, text = paste("Low OM:", om_l, "<br>", "RV OM:", om_r, "<br>", "High OM:", om_h, "<br>", "Depth:", hzdept_r))) +
+      geom_line(aes(y = om_r, x = hzdept_r, color = "RV")) +
+      geom_ribbon(aes(ymin = om_l, ymax = om_h, x = hzdept_r, color = "Range"), alpha = 0.2) +
       xlim(200, 0) +
-      xlab("depth (cm)") + ylab("organic matter (%)") +
+      xlab("Depth (cm)") + ylab("Organic Matter (%)") +
       ggtitle("Depth Plots of Organic Matter by Soil Component") +
       facet_wrap(~ paste(compname, comppct_r, "%")) +
+      theme(plot.margin=unit(c(1,1,1,1),"cm")) +
+      guides(color = guide_legend("Organic \nMatter")) +
       coord_flip()
-    ggplotly(om_plot)
+    ggplotly(om_plot, tooltip = c("text"))
     })
   
   output$omdatatab<- DT::renderDataTable({input$submit

@@ -52,30 +52,34 @@ wt <- function(input, output, session){
     
     wtlevels <- get_cosoilmoist_from_SDA(WHERE = paste0(isolate(input$choice),"='", isolate(input$query), "'"), duplicates = TRUE)
     
-    if (input$filltype=="flooding") {wt_plot<-ggplot(wtlevels, aes(x = as.integer(month), y = dept_r, lty = status))+
+    if (input$filltype=="flooding") {wt_plot<-ggplot(wtlevels, aes(x = as.integer(month), y = dept_r, lty = status, group = 1, text = paste("Low:", dept_l, "<br>", "RV:", dept_r, "<br>", "High:", dept_h, "<br>", "Status:", status, "<br>", "Month:", month.abb[as.integer(month)], "<br>", "Flooding Frequency:", flodfreqcl)))+
         geom_rect(aes(xmin = as.integer(month), xmax = as.integer(month)+
                         1, ymin = 0, ymax = max(wtlevels$depb_r),fill = flodfreqcl)) +
         geom_line(cex = 1) +
         geom_point() +
         geom_ribbon(aes(ymin = dept_l, ymax = dept_h), alpha = 0.2) +
-        ylim(max(wtlevels$depb_r), 0) +xlab("month") + ylab("depth (cm)") +
+        ylim(max(wtlevels$depb_r), 0) +xlab("month") + ylab("Depth (cm)") +
         scale_x_continuous(breaks = 1:12, labels = month.abb, name="Month")+
         facet_wrap(~ paste(compname, comppct_r, "pct", nationalmusym, sep = "-")) +
-        ggtitle("Water Table Levels from Component Soil Moisture Month Data")
-      ggplotly(wt_plot)
+        ggtitle("Water Table Levels from Component Soil Moisture Month Data") +
+        theme(plot.margin=unit(c(1,1,1,1),"cm")) +
+        guides(lty = guide_legend("Status"), fill = guide_legend("Flooding Frequency,"))
+      ggplotly(wt_plot, tooltip = c("text"))
       }
     
-    else if (input$filltype=="ponding") {ggplot(wtlevels, aes(x = as.integer(month), y = dept_r, lty = status))+
+    else if (input$filltype=="ponding") {wt_plot2 <- ggplot(wtlevels, aes(x = as.integer(month), y = dept_r, lty = status, group = 1, text = paste("Low:", dept_l, "<br>", "RV:", dept_r, "<br>", "High:", dept_h, "<br>", "Status:", status, "<br>", "Month:", month.abb[as.integer(month)], "<br>", "Ponding Frequency:", pondfreqcl)))+
         geom_rect(aes(xmin = as.integer(month), xmax = as.integer(month)+
                         1, ymin = 0, ymax = max(wtlevels$depb_r),fill = pondfreqcl)) +
         geom_line(cex = 1) +
         geom_point() +
         geom_ribbon(aes(ymin = dept_l, ymax = dept_h), alpha = 0.2) +
-        ylim(max(wtlevels$depb_r), 0) +xlab("month") + ylab("depth (cm)") +
+        ylim(max(wtlevels$depb_r), 0) +xlab("month") + ylab("Depth (cm)") +
         scale_x_continuous(breaks = 1:12, labels = month.abb, name="Month")+
         facet_wrap(~ paste(compname, comppct_r, "pct", nationalmusym, sep = "-")) +
-        ggtitle("Water Table Levels from Component Soil Moisture Month Data")}
-
+        theme(plot.margin=unit(c(1,1,1,1),"cm")) +
+        ggtitle("Water Table Levels from Component Soil Moisture Month Data") +
+        guides(lty = guide_legend("Status"), fill = guide_legend("Ponding Frequency,"))
+    ggplotly(wt_plot2, tooltip = c("text")) }
     })
 
 #mapunit name render for water table plot tab
