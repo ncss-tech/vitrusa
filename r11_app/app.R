@@ -3,6 +3,7 @@
 library(shinydashboard)
 library(leaflet)
 library(rmarkdown)
+library(soilReports)
 
 source("wt.R")
 source("om.R")
@@ -241,8 +242,8 @@ om_plot <- callModule(om, "om_query")
 
 # pr <- callModule(pr, "pr_query")
 
-library(knitr)
-  #render project report markdown
+# library(knitr)
+# render project report markdown
 
 observeEvent(input$reportsubmit,{
   updateTabItems(session, "tabs", "projectreport")
@@ -253,10 +254,13 @@ observeEvent(input$reportsubmit,{
     
     withProgress(message="Generating Report", detail="Please Wait", value=1, {
       
-      params<- list(projectname = isolate(input$projectreport))
-      
-      includeHTML(rmarkdown::render("report.Rmd", html_fragment(number_sections=TRUE, params = params, pandoc_args = "--toc")))
-      
+      includeHTML(rmarkdown::render(input = system.file("reports/region11/component_summary_by_project/report.Rmd", package='soilReports'),
+                                    output_dir = tempdir(), 
+                                    output_file = "temp.html", 
+                                    envir = new.env(),
+                                    params = list(projectname = isolate(input$projectreport)),
+                                    html_fragment(number_sections=TRUE, pandoc_args = "--toc")
+                                    ))
       })
     })
   
@@ -275,16 +279,19 @@ observeEvent(input$reportsubmit,{
   )  
   
   output$projectreportdownload<- downloadHandler(      
-    filename = function() {input$reportsubmit
+    filename = function() { input$reportsubmit
       paste("projectreport", Sys.Date(), ".html", sep="")
     },
     content= function(file) {
-      tempReport <-file.path(tempdir(), "report.Rmd")
-      file.copy("report.Rmd", tempReport, overwrite=TRUE)
-
-      withProgress(message="Preparing Report for Saving", detail="Please Wait", value=1, {
-      params<- list(projectname = isolate(input$projectreport))
-      rmarkdown::render(tempReport, output_file=file, html_document(number_sections=TRUE, toc=TRUE, toc_float=TRUE, params = params))
+      withProgress(message = "Preparing Report for Saving", detail = "Please Wait", value = 1, {
+        
+        rmarkdown::render(input = system.file("reports/region11/component_summary_by_project/report.Rmd", package='soilReports'),
+                          output_dir = tempdir(), 
+                          output_file = file, 
+                          envir = new.env(),
+                          params = list(projectname = isolate(input$projectreport)),
+                          output_format = html_document(number_sections=TRUE, toc=TRUE, toc_float=TRUE)
+                          )
       }
     )}
   )
