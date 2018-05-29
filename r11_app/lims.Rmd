@@ -7,7 +7,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-## [Progress](https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_progress_from_LIMS)
+## [Progress](https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_progress_from_NASISWebReport)
 
 Tracks MLRA Soil Survey Office (SSO) progress metrics by fiscal year, and project type. This report is useful for tracking annual progress. The report output includes:
 
@@ -17,7 +17,7 @@ Tracks MLRA Soil Survey Office (SSO) progress metrics by fiscal year, and projec
 ![](figures/progress_chart.png){width=750px}
 
 
-## [Project](https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project_from_LIMS)
+## [Project](https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project_from_NASISWebReport)
 
 Tracks individual projects by MLRA Soil Survey Office (SSO) and fiscal year. This report can be used to review a SSO Long Range Plan and examine the progress of individual projects. The report output includes:
 
@@ -27,13 +27,13 @@ Tracks individual projects by MLRA Soil Survey Office (SSO) and fiscal year. Thi
 * Dates - start, QC, QA, spatial, and complete
 
 
-## [Project Correlation](https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project_correlation_from_LIMS)
+## [Project Correlation](https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project_correlation_from_NASISWebReport)
 
 Tracks project correlation history by MLRA Soil Survey Office (SSO), fiscal year, and project name. This report can be used to track map unit changes (e.g. new vs. old musym) and flag map units that require spatial changes. This report is useful for constructing before and after maps, and tracking progress at the map unit level.
 
 ![](figures/progress_map.png){width=750px}
 
-## [Project Staff](https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_projectstaff_from_LIMS)
+## [Project Staff](https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_projectstaff_from_NASISWebReport)
 
 Tracks staff progress by MLRA Soil Survey Office (SSO) and fiscal year. This report is useful for tracking annual progress. The report output includes:
 
