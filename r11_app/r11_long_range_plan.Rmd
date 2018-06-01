@@ -10,6 +10,8 @@ output:
     toc_float:
       collapsed: yes
       smooth_scroll: no
+editor_options: 
+  chunk_output_type: console
 ---
 
 
@@ -27,11 +29,20 @@ suppressWarnings( {
   })
 ```
 
-```{r load-data, eval = TRUE}
+```{r load-data, eval = TRUE, echo = FALSE}
 
-r <- lapply(2018:2027, function(x) {
-  url = "https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project2_from_LIMS"
-  # p = list(p_mlrassoarea = "11-%", p_fy = x)
+day  <- Sys.Date()
+year <- as.numeric(format(day, "%Y"))
+fy   <- ifelse(
+  as.Date(paste0(year, "-10-01")) > day & day > as.Date(paste0(year - 1, "-09-30")),
+  year, 
+  year - 1
+  )
+
+r <- lapply(seq(fy + 1, fy + 10, 1), function(x) {
+  url = "https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project2_from_NASISWebReport"
+  # cat("getting projects for ", x, "\n")
+  # p = list(p_mlrassoarea = "11-%", p_fy = as.character(x))
   p = list(p_mlrassoarea = paste0(isolate(input$lrpinput), "%"), p_fy = x)
   r = parseWebReport(url, args = p)
   })
@@ -125,7 +136,7 @@ names(ac_wide) <- gsub("acres\\.", "", names(ac_wide))
 row.names(ac_wide) <- 1:nrow(ac_wide)
 
 test <- data.frame(matrix(vector(), 
-                          nrow = 1, ncol = 12, 
+                          nrow = 1, ncol = ncol(ac_wide), 
                           dimnames = list(c("1"), names(ac_wide))), 
                    check.names = FALSE
                    )
@@ -133,7 +144,7 @@ test <- within(test, {
   mlrassoarea = "ALL MLRASSOAREA"
   projecttypename = "ALL PROJECTS"
   })
-vars <- as.character(2018:2027)
+vars <- names(ac_wide)[! names(ac_wide) %in% vars]
 test[vars] <- apply(ac_wide[vars], 2, function(x) prettyNum(sum(as.numeric(gsub(",", "", x)), na.rm = TRUE), 
                                                             big.mark = ",", 
                                                             preserve.width = "common"
@@ -157,12 +168,16 @@ n_wide <- reshape(r_new[c(vars, "fiscalyear", "n_project")],
 names(n_wide) <- gsub("n_project\\.", "", names(n_wide))
 row.names(n_wide) <- 1:nrow(n_wide)
 
-test <- data.frame(matrix(vector(), nrow = 1, ncol = 12, dimnames = list(c("1"), names(ac_wide))), check.names = FALSE)
+test <- data.frame(matrix(vector(), 
+                          nrow = 1, ncol = ncol(n_wide), 
+                          dimnames = list(c("1"), names(ac_wide))), 
+                   check.names = FALSE
+                   )
 test <- within(test, {
   mlrassoarea = "ALL MLRASSOAREA"
   projecttypename = "ALL PROJECTS"
   })
-vars <- as.character(2018:2027)
+vars <- names(n_wide)[! names(n_wide) %in% vars]
 test[vars] <- apply(n_wide[vars], 2, sum, na.rm = TRUE)
 
 n_wide <- rbind(n_wide,
@@ -194,7 +209,7 @@ ggplot(r_long, aes(x = value, y = p_fy, group = p_fy, color = acres)) +
   geom_point(cex = 2) +
   facet_wrap(~ mlrassoarea, scales = "free_y", ncol = 2) +
   theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5)) + 
-  ylab("fiscalyear-projectiid") +
+  ylab("fiscalyear-projectiid") + xlab("Fiscal Year") +
   ggtitle("Timeline of MLRA Projects")
 
 ```
