@@ -189,11 +189,12 @@ DT::datatable(n_wide, caption = "Number of Projects by Fiscal Year")
 
 
 ```{r timeline, eval = TRUE, fig.height = n_tp}
+time_range <- seq(fy + 1, fy + 10, 1)
 
 r_sub <- subset(r, 
                 projecttypename %in% "MLRA" & 
-                fiscalyear %in% 2018:2027   &
-                format(date_start, "%Y") %in% 2018:2027
+                fiscalyear %in% time_range &
+                format(date_start, "%Y") %in% time_range
                 )
 
 vars <- c("fiscalyear", "mlrassoarea", "p_fy", "acres")
@@ -208,7 +209,7 @@ ggplot(r_long, aes(x = value, y = p_fy, group = p_fy, color = acres)) +
   geom_line(lwd = 1.5) +
   geom_point(cex = 2) +
   facet_wrap(~ mlrassoarea, scales = "free_y", ncol = 2) +
-  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + 
   ylab("fiscalyear-projectiid") + xlab("Fiscal Year") +
   ggtitle("Timeline of MLRA Projects")
 
