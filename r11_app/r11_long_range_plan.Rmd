@@ -144,8 +144,9 @@ test <- within(test, {
   mlrassoarea = "ALL MLRASSOAREA"
   projecttypename = "ALL PROJECTS"
   })
-vars <- names(ac_wide)[! names(ac_wide) %in% vars]
-test[vars] <- apply(ac_wide[vars], 2, function(x) prettyNum(sum(as.numeric(gsub(",", "", x)), na.rm = TRUE), 
+vars2 <- sort(names(ac_wide)[!names(ac_wide) %in% vars])
+ac_wide <- ac_wide[c(vars, vars2)]
+test[vars] <- apply(ac_wide[vars2], 2, function(x) prettyNum(sum(as.numeric(gsub(",", "", x)), na.rm = TRUE), 
                                                             big.mark = ",", 
                                                             preserve.width = "common"
                                                             ))
@@ -177,8 +178,10 @@ test <- within(test, {
   mlrassoarea = "ALL MLRASSOAREA"
   projecttypename = "ALL PROJECTS"
   })
-vars <- names(n_wide)[! names(n_wide) %in% vars]
-test[vars] <- apply(n_wide[vars], 2, sum, na.rm = TRUE)
+vars2 <- sort(names(n_wide)[!names(n_wide) %in% vars])
+n_wide <- n_wide[c(vars, vars2)]
+
+test[vars2] <- apply(n_wide[vars2], 2, sum, na.rm = TRUE)
 
 n_wide <- rbind(n_wide,
                 test
