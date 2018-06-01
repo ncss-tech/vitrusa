@@ -146,7 +146,7 @@ test <- within(test, {
   })
 vars2 <- sort(names(ac_wide)[!names(ac_wide) %in% vars])
 ac_wide <- ac_wide[c(vars, vars2)]
-test[vars] <- apply(ac_wide[vars2], 2, function(x) prettyNum(sum(as.numeric(gsub(",", "", x)), na.rm = TRUE), 
+test[vars2] <- apply(ac_wide[vars2], 2, function(x) prettyNum(sum(as.numeric(gsub(",", "", x)), na.rm = TRUE), 
                                                             big.mark = ",", 
                                                             preserve.width = "common"
                                                             ))
@@ -193,6 +193,7 @@ DT::datatable(n_wide, caption = "Number of Projects by Fiscal Year")
 
 ```{r timeline, eval = TRUE, fig.height = n_tp}
 time_range <- seq(fy + 1, fy + 10, 1)
+time_range2 <- as.Date(paste0(time_range, "-01-01"), "%Y")
 
 r_sub <- subset(r, 
                 projecttypename %in% "MLRA" & 
@@ -211,8 +212,9 @@ r_long <- reshape(r_sub[c(vars, vals)],
 ggplot(r_long, aes(x = value, y = p_fy, group = p_fy, color = acres)) +
   geom_line(lwd = 1.5) +
   geom_point(cex = 2) +
-  facet_wrap(~ mlrassoarea, scales = "free_y", ncol = 2) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + 
+  facet_wrap(~ mlrassoarea, scales = "free", ncol = 2) +
+  # theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  xlim(min(time_range2), max(time_range2)) +
   ylab("fiscalyear-projectiid") + xlab("Fiscal Year") +
   ggtitle("Timeline of MLRA Projects")
 
