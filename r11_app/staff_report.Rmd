@@ -1,5 +1,5 @@
 ---
-  output: html_fragment
+output: html_fragment
 ---
 
 ```{r setup, echo = FALSE}
@@ -17,7 +17,7 @@ library(plotly)
 library(forcats)
 library(RColorBrewer)
 
-ps <- parseWebReport("https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_projectstaff_from_LIMS", args = list(p_mlrassoarea = paste0(isolate(input$psso), "%"), p_fy = paste0(isolate(input$pfy))))
+ps <- parseWebReport("https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_projectstaff_from_NASISWebReport", args = list(p_mlrassoarea = paste0(isolate(input$psso), "%"), p_fy = paste0(isolate(input$pfy))))
 
 ps$username[is.na(ps$username)] <- "Unknown"
 
@@ -29,7 +29,7 @@ ps <- subset(ps, projecttypename != "PES")
 # ps$sums <- aggregate(ps$acre_goal, by = list(Category=ps$acre_goal), FUN = sum)
 
 len1 = length(unique(ps$mlrassoarea))
-len2 = length(unique(ps$region))
+len2 = length(unique(ps$region))*2
 
 psag <- aggregate(ps$acre_goal, by = list(mlrassoarea = ps$mlrassoarea, region = ps$region), FUN = sum)
 psags <- psag[order(psag$x, decreasing = TRUE),]
@@ -59,9 +59,11 @@ pl3 <- ggplot(ps) +
   facet_wrap(~ as.numeric(region) + mlrassoarea, scales = "free_y", ncol = 2, dir = "v") +
   coord_flip() +
   scale_y_continuous(labels = scales::comma) +
-  labs(y = "Goal (in Acres)", x = "User Name")
+  labs(y = "Goal (in Acres)", x = "User Name", title = paste0(input$pfy, " Goals by Office and User Name"))
 
 pl3
+
+
 ```
 
 ```{r, fig.height = len2, out.width = '75%'}
@@ -73,10 +75,18 @@ pl2 <- ggplot(psags) +
   labs(y = "Goal (in Acres)", x = "Region") +
   # guides(fill = guide_legend(ncol=3))
   geom_text(aes(x = region, y = x,label = mlrassoarea, angle = 90), position = position_stack(vjust= .5), size = 3) +
+  theme(plot.margin=unit(c(1,1,1,1),"cm")) +
   guides(fill = FALSE)
 
 pl2
 
+# pl5 <- plot_ly(psags, y = ~region, x = ~x, type = "bar") %>% layout(barmode = "stack")
+
+# pl4 <- ggplotly(pl2)
+
+# pl4
+
+# pl5
 ```
 
 ```{r}

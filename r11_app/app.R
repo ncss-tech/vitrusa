@@ -9,6 +9,7 @@ source("wt.R")
 source("om.R")
 #source("c:/workspace2/pr.R")
 jsfile<- "https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"
+pljs <- "https://cdn.plot.ly/plotly-latest.min.js"
 
 
 #create a dashboard header
@@ -25,7 +26,7 @@ sidebar<-dashboardSidebar( width = 250,
               menuItem("Home", tabName="Home", selected=TRUE, icon=icon("home")),
               
               
-              menuItem("LIMS Reports", tabName="LIMS", icon=icon("flask")),
+              menuItem("NASIS Reports", tabName="LIMS", icon=icon("flask")),
               
               #Water Table Menu
               menuItem("Water Table", icon=icon("tint"),
@@ -135,6 +136,7 @@ body<-dashboardBody(
   #styling for the progress bar position
   tags$style(type="text/css", ".shiny-notification{position: fixed; top:33%;left:33%;right:33%;}"),
   tags$head(tags$script(src = jsfile),tags$link(rel="stylesheet", type="text/css",href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css")),
+  tags$head(tags$script(src = pljs), tags$link(rel ="stylesheet", type="text/css", href = "https://cdn.plot.ly/plotly-latest.min.js")),
   
   #create tabs to match the menu items
   tabItems(
@@ -150,7 +152,7 @@ body<-dashboardBody(
     #LIMS Reports
     
     tabItem(tabName="LIMS",
-            titlePanel("LIMS Reports"),
+            titlePanel("NASIS Reports"),
             verticalLayout(
               fluidRow(
                 box(tags$div(

@@ -3,7 +3,7 @@
 ---
 #### ABOUT THIS APP
 
-The Region 11 Web App is a set of web applications which use [R](https://www.r-project.org/) to query information from [Soil Data Access](https://sdmdataaccess.nrcs.usda.gov/) or LIMS and assembles the data into a tables, graphs and reports.
+The Region 11 Web App is a set of web applications which use [R](https://www.r-project.org/) to query information from [Soil Data Access](https://sdmdataaccess.nrcs.usda.gov/) or the National Soil Information System (NASIS) and assembles the data into a tables, graphs and reports.
 
 #### How to Use
 
@@ -13,9 +13,9 @@ The Region 11 Web App is a set of web applications which use [R](https://www.r-p
   4. Enter your query.  Be sure to enter the proper format.  Each of the previously mentioned methods has a unique set of criteria in order to return data without error.
   5. Click the Submit button.  The query will not execute until this button is clicked.
 
-#### LIMS Reports
+#### NASIS Reports
 
-This is a list of useful LIMS reports not easily found elsewhere.
+This is a list of useful NASIS reports not easily found elsewhere.
 
 #### Water Table
 
