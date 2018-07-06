@@ -11,6 +11,7 @@ library(lubridate)
 library(ggplot2)
 library(plyr)
 library(dplyr)
+library(leaflet)
 
 # Create a dashboard header
 
@@ -71,6 +72,10 @@ body <- dashboardBody(
   #styling for the validation errors
   
   tags$style(HTML(".shiny-output-error-validation {color: red; padding: 5px;}")),
+  
+  #head files
+  
+  withMathJax(),
   
 # Tabs items  
   
@@ -156,8 +161,9 @@ body <- dashboardBody(
     #Example tab
 
     tabItem(tabName="example",
-        includeHTML("example.html")
-        ),
+            verticalLayout(
+        box(withMathJax(includeHTML("example.html")), width = 12)
+        )),
 
     #Analysis Report tab
     
@@ -218,6 +224,7 @@ body <- dashboardBody(
           tabBox(
             title = "Precipitation and Water Level Plot",
             tabPanel("Plot", plotlyOutput("doubleplot")),
+            tabPanel("Map", leafletOutput("w_site")),
             width = 12
           )
         ),
@@ -263,9 +270,6 @@ server <- function(input, output, session) {
       showModal(dataModal(failed = TRUE))
     }
   })
-  
-  
-  
   
   output$sm_inputs <- renderUI({
     fileInput(
@@ -409,15 +413,14 @@ server <- function(input, output, session) {
   })
 
   sitedata <- reactive({
-    source("https://github.com/ncss-tech/soil-pit/raw/master/sandbox/john/moisture_query/get_site_soilmoist_from_NASIS_db.R")
-    si<-get_site_soilmoist_from_NASIS_db()
+    si<-get_sitesoilmoist_from_NASISWebReport(usiteid = input$usiteid)
     return(si)
   })
   
   stationdata <- reactive({ input$submit
     sited <- sitedata()
     station_data<-read.csv("station_data.csv")
-    if(max(year(as.Date(sited$obs_date)))>max(station_data$last_year, na.rm=TRUE)) {station_data<-ghcnd_stations()}
+    if(max(year(as.Date(sited$obsdate, "%m/%d/%Y")))>max(station_data$last_year, na.rm=TRUE)) {station_data<-ghcnd_stations()}
     return(station_data)
   })
   
@@ -431,10 +434,10 @@ server <- function(input, output, session) {
     sited <- sitedata()
     station_data <- stationdata()
     # rename column to "id" so rnoaa understands
-    s_ids<-plyr::rename(sited, c("site_id"="id"))
+    s_ids<-plyr::rename(sited, c("usiteid"="id"))
     
     # Find nearby NOAA weather station  
-    nearest_station<-as.data.frame(meteo_nearby_stations(lat_lon_df=s_ids, lat_colname= "y_std", lon_colname="x_std", limit=1, station_data= station_data), col.names=NULL)
+    nearest_station<-as.data.frame(meteo_nearby_stations(lat_lon_df=s_ids, lat_colname= "latstddecimaldegrees", lon_colname="longstddecimaldegrees", limit=1, station_data= station_data), col.names=NULL)
     return(nearest_station)
     
   })
@@ -450,7 +453,7 @@ server <- function(input, output, session) {
     sited<- sitedata()
     stations<-stationsdat()
     # Filter the dates of interest
-    station_filter<-stations %>% filter(date>= min(sited$obs_date)) %>% filter(date<= max(sited$obs_date))
+    station_filter<-stations %>% filter(date>= min(as.Date(sited$obsdate, "%m/%d/%Y"))) %>% filter(date<= max(as.Date(sited$obsdate, "%m/%d/%Y")))
     return(station_filter)
   })
   
@@ -764,7 +767,7 @@ server <- function(input, output, session) {
           sitesoiltable <- finalsitesmoist()
 
     rsmmd <- plot_ly() %>%
-      add_lines(x = as.Date(sitesoiltable$obsdate, format = "%Y-%m-%d"), y = sitesoiltable$soimoistdept, name = sited$site_id) %>%
+      add_lines(x = as.Date(sitesoiltable$obsdate, format = "%Y-%m-%d"), y = sitesoiltable$soimoistdept, name = sited$usiteid) %>%
       add_bars(x = as.Date(station_filter$date, format = "%m/%d/%Y"), y = station_filter$prcp/100, name = station_filter$id, yaxis="y2") %>%
       layout(
         title = "Water Table and Precipitation",
@@ -777,9 +780,9 @@ server <- function(input, output, session) {
         #   overlaying = "x",
         #   side = "top",
         #   title = "Date"),
-        xaxis = list(title="Date"),
+        xaxis = list(title="Date (year)"),
         yaxis = list(autorange = "reversed", title="Water Table Level (cm)"),
-        margin = list(l=50,r=0,b=0,t=75,pad=0)
+        margin = list(l=50,r=0,b=75,t=75,pad=0)
       )
   })
  })
@@ -846,6 +849,63 @@ server <- function(input, output, session) {
     tags$p("Click  download to save processed file for NASIS upload -")
     
   })
+  
+  output$w_site<-renderLeaflet({ 
+    
+    #load required libraries  
+    
+    library(leaflet)
+    library(leaflet.esri)
+    library(leaflet.extras)
+    
+    withProgress(message="Generating Map", value=0,{
+      
+      nearest_station<-near_station()
+      s<-sitedata()
+      
+      incProgress(1/10, detail =paste("Reading Coordinates")) 
+      
+      incProgress(1/10, detail =paste("Please Wait")) 
+      site_icons <-awesomeIcons(
+        icon="circle",
+        iconColor = 'black',
+        library="fa",
+        markerColor="blue"
+      )
+      incProgress(1/10, detail =paste("Please Wait"))
+      station_icons <-awesomeIcons(
+        icon="circle",
+        iconColor = 'black',
+        library="fa",
+        markerColor="orange"
+      )
+      incProgress(1/10, detail =paste("Please Wait"))
+      
+      m<-leaflet()
+      m<-addTiles(m, group="Open Street Map")
+      
+      
+      incProgress(1/10, detail =paste("Adding Data to Map"))
+      
+      m<-addProviderTiles(m, providers$Esri.WorldImagery, group="ESRI Imagery")
+      m<-addProviderTiles(m, providers$OpenMapSurfer.AdminBounds, group="Admin Boundaries")
+      m<-hideGroup(m, c("Admin Boundaries","MLRA", "Soil Polygons"))
+      m<-addEasyButton(m, easyButton(icon="fa-globe", title="Zoom to CONUS", onClick=JS("function(btn, map){map.setZoom(4);}")))
+      m<-addEsriFeatureLayer(map=m, url='https://services.arcgis.com/SXbDpmb7xQkk44JV/arcgis/rest/services/US_MLRA/FeatureServer/0/',
+                             group="MLRA", useServiceSymbology = TRUE, popupProperty =propsToHTML(props=c("MLRARSYM","MLRA_NAME")), smoothFactor=1, options=featureLayerOptions(renderer='L.canvas'))
+      m<-addProviderTiles(m, providers$Esri.WorldStreetMap, group="ESRI Street")
+      m<-addProviderTiles(m, providers$Esri.WorldTopoMap, group="ESRI Topo")
+      m<-addProviderTiles(m, providers$Stamen.Terrain, group="Stamen Terrain")
+      m<-addProviderTiles(m, providers$Stamen.TonerLite, group="Stamen TonerLite")
+      m<-addWMSTiles(m, "https://SDMDataAccess.sc.egov.usda.gov/Spatial/SDM.wms?", options= WMSTileOptions(version="1.1.1", transparent=TRUE, format="image/png"), layers="mapunitpoly", group="Soil Polygons")
+      m<-addAwesomeMarkers(m, data=nearest_station, label=nearest_station$id, icon=station_icons, group="Weather Stations")
+      m<-addAwesomeMarkers(m, data=s, lng=unique(s$longstddecimaldegrees), lat=unique(s$latstddecimaldegrees), label=unique(s$usiteid), icon=site_icons, group="Monitoring Sites")
+      m<-addLayersControl(m, baseGroups=c("Stamen TonerLite", "ESRI Street", "ESRI Topo", "ESRI Imagery","Open Street Map", "Stamen Terrain"),overlayGroups=c("Soil Polygons", "MLRA", "Admin Boundaries", "Monitoring Sites", "Weather Stations"))
+      incProgress(1/10, detail =paste("Adding Data to Map"))
+    })
+    m
+  })
+  
 }
 
 

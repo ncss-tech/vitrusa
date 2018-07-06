@@ -3,12 +3,16 @@ library(plotly)
 library(leaflet)
 
 header<-dashboardHeader(
-  title="Soil Moisture Data App")
+  title="Soil Moisture Data Analysis App",
+  titleWidth = 325)
 
 sidebar<-dashboardSidebar(
   sidebarMenu(id="tabs",
               menuItem("Home", tabName="Home", selected=TRUE, icon=icon("home")),
-              menuItem("Soil Moisture Data", tabName="rawdata", icon=icon("map-pin")),
+              menuItem("Soil Moisture Data", tabName="rawdata", icon=icon("map-pin"),
+                       menuSubItem("Site", tabName="rawdata", icon=icon("map-marker")),
+                       textInput("sid", "User Site ID"),
+                       actionButton("usitesubmit", "Submit"), br(),p()),
               menuItem("Weather Data", tabName="nearby_stations", icon=icon("tint"),
                        menuSubItem("Nearby Stations", tabName="weather", icon=icon("map-marker")),
                        sliderInput("station_number", "# of weather stations to use:", min=1, max=25, value=3, step=1),
@@ -27,9 +31,9 @@ body<-dashboardBody(
   tabItems(
     #Home tab
     tabItem(tabName="Home",
-            titlePanel("Welcome to the Soil Moisture Data App"),
+            titlePanel("Welcome to the Soil Moisture Data Analysis App"),
             verticalLayout(
-              infoBox("About this App", "The Soil Moisture Data App is a tool for USDA soil scientists to analyze soil moisture monitoring data.", width=12, icon=icon("globe"), color="blue"),
+              infoBox("About this App", "The Soil Moisture Data Analysis App is a tool for USDA soil scientists to analyze soil moisture monitoring data.", width=12, icon=icon("globe"), color="blue"),
               box(p(tags$b("Get started using the Soil Moisture Data App by selecting a menu item on the left.")),
                   p("Remember to click on a sub-menu item in order to view the results of a query."),
                   p("Once the sub-menu item is active it will begin loading an example query unless you have already changed the query inputs."),
@@ -88,6 +92,9 @@ server <- function(input, output, session){
     updateTabItems(session, "tabs", "weather")
   })
   
+  observeEvent(input$usitesubmit,{
+    updateTabItems(session, "tabs", "rawdata")
+  })
   
   library(RODBC)
   library(soilDB)
@@ -100,8 +107,7 @@ server <- function(input, output, session){
   library(plotly)
 
 sitedata <- reactive({
-  source("https://github.com/ncss-tech/soil-pit/raw/master/sandbox/john/moisture_query/get_site_soilmoist_from_NASIS_db.R")
-  s<-get_site_soilmoist_from_NASIS_db()
+  s<-get_sitesoilmoist_from_NASISWebReport(usiteid = input$sid)
   return(s)
 })
   
@@ -113,7 +119,7 @@ output$sitetable <- DT::renderDataTable({s <- sitedata()
 output$iniplot <- renderPlotly({
   s<-sitedata()
   # Plot all data
-  rsmmd<-ggplot(s, aes(x= as.Date(obs_date),y= t_sm_d, color=site_id)) + scale_colour_grey() +
+  rsmmd<-ggplot(s, aes(x= as.Date(obsdate, "%m/%d/%Y"),y= dept, color=usiteid)) + scale_colour_grey() +
     geom_line(cex=0.5)+scale_y_reverse()+scale_x_date() +
     labs(x="Date (year)", y="Depth to wetness (cm)", title="Raw Soil Moisture Monitoring Data")
   ggplotly(rsmmd)
@@ -122,7 +128,7 @@ output$iniplot <- renderPlotly({
 
 smonth <- reactive({
   s <- sitedata()
-  s_by_month<- aggregate(cbind(t_sm_d)~month(obs_date),data=s,FUN=mean)
+  s_by_month<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=s,FUN=mean)
   return(s_by_month)
 })
 
@@ -136,10 +142,10 @@ output$inimonthplot <- renderPlotly({
   
   s_by_month <- smonth()
   
-mdwbm<-ggplot(s_by_month, aes(x= `month(obs_date)`,y= t_sm_d)) +
+mdwbm<-ggplot(s_by_month, aes(x= `month(as.Date(obsdate, "%m/%d/%Y"))`,y= dept)) +
   geom_line(cex=1) +
   scale_x_continuous(breaks = 1:12, labels = month.abb, name="Month") +
-  ylim(max(s_by_month$t_sm_d), 0) +
+  ylim(max(s_by_month$dept), 0) +
   labs(y="Depth to Wetness (cm)", title="Mean Depth to Wetness by Month (all years)")
 ggplotly(mdwbm)
 
@@ -148,7 +154,7 @@ ggplotly(mdwbm)
 stationdata <- reactive({
   s<- sitedata()
   station_data<-read.csv("station_data.csv")
-  if(max(year(as.Date(s$obs_date)))>max(station_data$last_year, na.rm=TRUE)) {station_data<-ghcnd_stations()}
+  if(max(year(as.Date(s$obsdate, "%m/%d/%Y")))>max(station_data$last_year, na.rm=TRUE)) {station_data<-ghcnd_stations()}
   return(station_data)
 })
 
@@ -162,10 +168,10 @@ near_station <- reactive({ input$submit
   s <- sitedata()
   station_data <- stationdata()
   # rename column to "id" so rnoaa understands
-  s_ids<-plyr::rename(s, c("site_id"="id"))
+  s_ids<-plyr::rename(s, c("usiteid"="id"))
   
   # Find nearby NOAA weather station  
-  nearest_station<-as.data.frame(meteo_nearby_stations(lat_lon_df=s_ids, lat_colname= "y_std", lon_colname="x_std", limit=isolate(input$station_number), radius=isolate(input$search_radius), station_data= station_data), col.names=NULL)
+  nearest_station<-as.data.frame(meteo_nearby_stations(lat_lon_df=s_ids, lat_colname= "latstddecimaldegrees", lon_colname="longstddecimaldegrees", limit=isolate(input$station_number), radius=isolate(input$search_radius), station_data= station_data), col.names=NULL)
   return(nearest_station)
   
 })
@@ -186,7 +192,7 @@ stationfilt<-reactive({
   s<- sitedata()
   stations<-stationsdat()
   # Filter the dates of interest
-  station_filter<-stations %>% filter(date>= min(s$obs_date)) %>% filter(date<= max(s$obs_date))
+  station_filter<-stations %>% filter(date>= min(as.Date(s$obsdate, "%m/%d/%Y"))) %>% filter(date<= max(as.Date(s$obsdate, "%m/%d/%Y")))
 return(station_filter)
 })
 
@@ -238,10 +244,10 @@ all_years_l<-reactive({
   
   #Use only normal years
   s_normal_years<-s %>%
-    filter(grepl(years_list, obs_date))
+    filter(grepl(years_list, as.Date(obsdate, "%m/%d/%Y")))
   
   # Aggregate normal years by month
-  s_normals_by_month<- aggregate(cbind(t_sm_d)~month(obs_date),data=s_normal_years,FUN=mean)
+  s_normals_by_month<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=s_normal_years,FUN=mean)
   
   # Plot Results
   # mdwywnap<-ggplot(s_normals_by_month, aes(x= `month(obs_date)`,y= t_sm_d))+geom_line(cex=1)+scale_x_continuous(breaks = 1:12, labels = month.abb, name="Month")+ylim(max(s_normals_by_month$t_sm_d), 0) +
@@ -303,22 +309,22 @@ output$allnormalplot <- renderPlotly({
   all_years_list<-all_years_l()
 
   all_s_normal_years<-s %>%
-    filter(grepl(all_years_list, obs_date))
+    filter(grepl(all_years_list, as.Date(obsdate, "%m/%d/%Y")))
   
   # Aggregate all normal years by month
-  all_s_normals_by_month<- aggregate(cbind(t_sm_d)~month(obs_date),data=all_s_normal_years,FUN=mean)
+  all_s_normals_by_month<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=all_s_normal_years,FUN=mean)
   
   
-  all_s_normals_by_month_min<- aggregate(cbind(t_sm_d)~month(obs_date),data=all_s_normal_years,FUN=quantile, probs=0.05)
+  all_s_normals_by_month_min<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=all_s_normal_years,FUN=quantile, probs=0.05)
   
-  all_s_normals_by_month_max<- aggregate(cbind(t_sm_d)~month(obs_date),data=all_s_normal_years,FUN=quantile, probs=0.95)
+  all_s_normals_by_month_max<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=all_s_normal_years,FUN=quantile, probs=0.95)
   
   all_s_normals_by_month$min<-all_s_normals_by_month_min[,2]
   
   all_s_normals_by_month$max<-all_s_normals_by_month_max[,2]
   
   # Plot Results
-  wbmwlrh<-ggplot(all_s_normals_by_month, aes(x= `month(obs_date)`,y= t_sm_d))+
+  wbmwlrh<-ggplot(all_s_normals_by_month, aes(x= `month(as.Date(obsdate, "%m/%d/%Y"))`,y= dept))+
     geom_line(cex=1)+
     scale_x_continuous(breaks = 1:12, labels = month.abb, name="Month")+
     ylim(max(all_s_normals_by_month$max), 0)+
@@ -340,7 +346,7 @@ output$allnormalrainplot <-renderPlotly({
   
   # Plot rainfall and water table by month
   mdwbmmrbm<-ggplot() +
-    geom_line(data= all_normal_station_filter_by_month, aes(x= `month(date)`,y= prcp/100), color='blue') +
+    geom_col(data= all_normal_station_filter_by_month, aes(x= `month(date)`,y= prcp/100), color='blue') +
     scale_x_continuous(breaks = 1:12, labels = month.abb, name="Month") +
     ylim(0, max(all_normal_station_filter_by_month$prcp)/100) +
     labs(y="Depth (cm)", title="Mean Normal Precip by Month", subtitle="Years with a Normal Annual Precip and a Normal Monthly Precip in at least 8 months of the year")
@@ -365,7 +371,7 @@ output$sm_site<-renderLeaflet({
       icon="circle",
       iconColor = 'black',
       library="fa",
-      markerColor="red"
+      markerColor="blue"
     )   
     incProgress(1/10, detail =paste("Please Wait")) 
 
@@ -390,9 +396,9 @@ output$sm_site<-renderLeaflet({
     m<-addProviderTiles(m, providers$Stamen.Terrain, group="Stamen Terrain")
     m<-addProviderTiles(m, providers$Stamen.TonerLite, group="Stamen TonerLite")
     m<-addWMSTiles(m, "https://SDMDataAccess.sc.egov.usda.gov/Spatial/SDM.wms?", options= WMSTileOptions(version="1.1.1", transparent=TRUE, format="image/png"), layers="mapunitpoly", group="Soil Polygons")
-    m<-addAwesomeMarkers(m, data=s, lng=unique(s$x_std), lat=unique(s$y_std), label=unique(s$site_id), icon=site_icons, group="Monitoring Sites")
+    m<-addAwesomeMarkers(m, data=s, lng=unique(s$longstddecimaldegrees), lat=unique(s$latstddecimaldegrees), label=unique(s$usiteid), icon=site_icons, group="Monitoring Sites")
     m<-addLayersControl(m, baseGroups=c("Stamen TonerLite", "ESRI Street", "ESRI Topo", "ESRI Imagery","Open Street Map", "Stamen Terrain"),overlayGroups=c("Soil Polygons", "MLRA", "Admin Boundaries", "Monitoring Sites"))
-    m<-setView(m, lat=mean(s$y_std), lng=mean(s$x_std), zoom=12)
+    m<-setView(m, lat=mean(s$latstddecimaldegrees), lng=mean(s$longstddecimaldegrees), zoom=12)
     incProgress(1/10, detail =paste("Adding Data to Map"))
   })
   m
@@ -418,14 +424,14 @@ output$w_site<-renderLeaflet({
       icon="circle",
       iconColor = 'black',
       library="fa",
-      markerColor="red"
+      markerColor="blue"
     )
     incProgress(1/10, detail =paste("Please Wait"))
     station_icons <-awesomeIcons(
       icon="circle",
       iconColor = 'black',
       library="fa",
-      markerColor="blue"
+      markerColor="orange"
     )
     incProgress(1/10, detail =paste("Please Wait"))
     
@@ -447,7 +453,7 @@ output$w_site<-renderLeaflet({
     m<-addProviderTiles(m, providers$Stamen.TonerLite, group="Stamen TonerLite")
     m<-addWMSTiles(m, "https://SDMDataAccess.sc.egov.usda.gov/Spatial/SDM.wms?", options= WMSTileOptions(version="1.1.1", transparent=TRUE, format="image/png"), layers="mapunitpoly", group="Soil Polygons")
     m<-addAwesomeMarkers(m, data=nearest_station, label=nearest_station$id, icon=station_icons, group="Weather Stations")
-    m<-addAwesomeMarkers(m, data=s, lng=unique(s$x_std), lat=unique(s$y_std), label=unique(s$site_id), icon=site_icons, group="Monitoring Sites")
+    m<-addAwesomeMarkers(m, data=s, lng=unique(s$longstddecimaldegrees), lat=unique(s$latstddecimaldegrees), label=unique(s$usiteid), icon=site_icons, group="Monitoring Sites")
     m<-addLayersControl(m, baseGroups=c("Stamen TonerLite", "ESRI Street", "ESRI Topo", "ESRI Imagery","Open Street Map", "Stamen Terrain"),overlayGroups=c("Soil Polygons", "MLRA", "Admin Boundaries", "Monitoring Sites", "Weather Stations"))
     incProgress(1/10, detail =paste("Adding Data to Map"))
   })
@@ -462,15 +468,15 @@ output$normalobs<-DT::renderDataTable({
   all_years_list<-all_years_l()
   
   all_s_normal_years<-s %>%
-    filter(grepl(all_years_list, obs_date))
+    filter(grepl(all_years_list, as.Date(obsdate, "%m/%d/%Y")))
   
   # Aggregate all normal years by month
-  all_s_normals_by_month<- aggregate(cbind(t_sm_d)~month(obs_date),data=all_s_normal_years,FUN=mean)
+  all_s_normals_by_month<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=all_s_normal_years,FUN=mean)
   
   
-  all_s_normals_by_month_min<- aggregate(cbind(t_sm_d)~month(obs_date),data=all_s_normal_years,FUN=quantile, probs=0.05)
+  all_s_normals_by_month_min<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=all_s_normal_years,FUN=quantile, probs=0.05)
   
-  all_s_normals_by_month_max<- aggregate(cbind(t_sm_d)~month(obs_date),data=all_s_normal_years,FUN=quantile, probs=0.95)
+  all_s_normals_by_month_max<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=all_s_normal_years,FUN=quantile, probs=0.95)
   
   all_s_normals_by_month$min<-all_s_normals_by_month_min[,2]
   
