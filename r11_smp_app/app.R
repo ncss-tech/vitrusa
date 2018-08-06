@@ -48,12 +48,12 @@ sidebar <- dashboardSidebar(
   menuItem(
     "Soil Moisture Data Analysis",
     icon = icon("fighter-jet"),
-    href = "https://hammerly.shinyapps.io/r11_sma_app/"
+    href = "https://usda.shinyapps.io/r11_sma_app/"
   ),
   menuItem(
     "Source Code",
     icon = icon("file-code-o"),
-    href = "https://github.com/ncss-tech/soil-pit/blob/master/sandbox/john/r11_smp_app/app.R/"
+    href = "https://github.com/ncss-tech/vitrusa/tree/master/r11_smp_app"
   )
  )
 )

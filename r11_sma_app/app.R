@@ -19,7 +19,12 @@ sidebar<-dashboardSidebar(
                        sliderInput("search_radius", "Max search distance (km):", min=5, max=500, value=50, step=5),
                        actionButton("submit", "Submit"), br(),p(),
               menuSubItem("Station Inventory", tabName="station_inventory", icon=icon("list-alt"))),
-              menuItem("Normal Data", tabName="normaldata", icon=icon("area-chart"))
+              menuItem("Normal Data", tabName="normaldata", icon=icon("area-chart")),
+              menuItem(
+                "Source Code",
+                icon = icon("file-code-o"),
+                href = "https://github.com/ncss-tech/vitrusa/tree/master/r11_sma_app"
+              )
               )
 )
   
@@ -99,12 +104,13 @@ server <- function(input, output, session){
   library(RODBC)
   library(soilDB)
   library(ggplot2)
+  library(plyr)
   library(dplyr)
   library(lubridate)
   library(rnoaa)
-  library(plyr)
   library(knitr)
   library(plotly)
+  library(rvest)
 
 sitedata <- reactive({
   s<-get_sitesoilmoist_from_NASISWebReport(usiteid = input$sid)
