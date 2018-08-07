@@ -6,7 +6,7 @@ Current Release of Shiny Apps
 -----------------------
 Region 11 Web Application https://usda.shinyapps.io/r11_app/.
 
-This is a shiny app which uses R, USDA Soil Data Access and LIMS to create useful plots and reports for understanding soils.  The app can be found in the r11_app folder.
+This is a shiny app which uses R, USDA Soil Data Access and NASIS Web Reports to create useful plots and reports for understanding soils.  The app can be found in the r11_app folder.
 
 Experimental Shiny Apps
 -----------------------
