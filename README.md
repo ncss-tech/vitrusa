@@ -10,11 +10,11 @@ This is a shiny app which uses R, USDA Soil Data Access and LIMS to create usefu
 
 Experimental Shiny Apps
 -----------------------
-Region 11 Soil Moisture Processing App http://hammerly.shinyapps.io/r11_smp_app/.
+Region 11 Soil Moisture Processing App http://usda.shinyapps.io/r11_smp_app/.
 
 An app for processing soil moisture monitoring data for upload to NASIS.  The app can be found in the r11_smp_app folder.
 
-Region 11 Soil Moisture Analysis App (no URL)
+Region 11 Soil Moisture Analysis App http://usda.shinyapps.io/r11_sma_app/.
 
 An app for analyzing soil moisture monitoring data from NASIS.  The app can be found in the r11_sma_app folder.
 
