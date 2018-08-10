@@ -1,6 +1,6 @@
 Vitrusa
 =======================
-Vitrusa is repository containing Various Interactive Tools in R Using Shiny Apps.
+Vitrusa is repository containing Various Interactive Tools in R Using Shiny Apps.  These apps are built for use in soil science.
 
 Current Release of Shiny Apps
 -----------------------
