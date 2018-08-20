@@ -23,14 +23,14 @@ server <- function(input, output){
   
   output$s_lims <- renderInfoBox({
     infoBox(
-      "LIMS STATUS", if(is.null(parseWebReport("https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_projectmapunit_from_LIMS", ""))) paste0("Not Operational") else paste0("Operational"), color = if(is.null(parseWebReport("https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_projectmapunit_from_LIMS", ""))) paste0("red") else paste0("green"), fill = TRUE, icon = icon("flask")
+      "NASIS WEB REPORTS STATUS", if(is.null(parseWebReport("https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_projectmapunit_from_LIMS", ""))) paste0("Not Operational") else paste0("Operational"), color = if(is.null(parseWebReport("https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_projectmapunit_from_LIMS", ""))) paste0("red") else paste0("green"), fill = TRUE, icon = icon("flask")
     )
     
   })
   
   output$s_sda <- renderInfoBox({
     infoBox(
-      "SDA STATUS", if(is.null(get_mapunit_from_SDA(WHERE = "areasymbol = 'IA171' AND musym = '478G'"))) paste0("Not Operational") else paste0("Operational"), color = if(is.null(get_mapunit_from_SDA(WHERE = "areasymbol = 'IA171' AND musym = '478G'"))) paste0("red") else paste0("green"), fill = TRUE, icon = icon("database")
+      "SOIL DATA ACCESS STATUS", if(is.null(get_mapunit_from_SDA(WHERE = "areasymbol = 'IA171' AND musym = '478G'"))) paste0("Not Operational") else paste0("Operational"), color = if(is.null(get_mapunit_from_SDA(WHERE = "areasymbol = 'IA171' AND musym = '478G'"))) paste0("red") else paste0("green"), fill = TRUE, icon = icon("database")
     )
     
   })

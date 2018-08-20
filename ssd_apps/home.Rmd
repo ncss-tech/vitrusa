@@ -7,3 +7,7 @@
 ## Choose a web app to begin.
 
 [Region 11 Web App](https://usda.shinyapps.io/r11_app)
+
+[Region 11 Soil Moisture Processing App](https://usda.shinyapps.io/r11_smp_app)
+
+[Region 11 Soil Moisture Analysis App](http://usda.shinyapps.io/r11_sma_app)

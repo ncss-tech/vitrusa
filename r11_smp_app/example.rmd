@@ -87,7 +87,7 @@ Action
 
 #### Final Graph
 
-
+![](www/wt_precip.png)
 
 ## Step 2
 

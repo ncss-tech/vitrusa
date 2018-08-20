@@ -81,6 +81,7 @@ body<-dashboardBody(
             titlePanel("Normal Data"),
             verticalLayout(
               fluidRow(
+                valueBoxOutput("number_yrs", width=12),
                 box(plotlyOutput("allnormalplot"), status="primary", title="Plot (Normal Observations)", solidHeader=TRUE, collapsible=TRUE, width=6),
                 box(plotlyOutput("allnormalrainplot"), status="primary", title="Plot (Normal Precipitation)", solidHeader=TRUE, collapsible=TRUE, width=6),
                 box(DT::dataTableOutput("normalobs"), status="primary", title="Normal Observations", solidHeader=TRUE, collapsible=TRUE, collapsed=TRUE, width=6),
@@ -252,6 +253,12 @@ all_years_l<-reactive({
   s_normal_years<-s %>%
     filter(grepl(years_list, as.Date(obsdate, "%m/%d/%Y")))
   
+  #Make a list of selected years
+  unique_norm_years <- unique(year(as.Date(s_normal_years$obsdate, "%m/%d/%Y")))
+  
+  #Length of normal years
+  num_norm_yrs <- length(unique_norm_years)
+  
   # Aggregate normal years by month
   s_normals_by_month<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=s_normal_years,FUN=mean)
   
@@ -307,6 +314,11 @@ all_years_l<-reactive({
 # 
 # output$normalrainmonthplot
 # 
+
+output$number_yrs <- renderValueBox({
+  valueBox(paste0(num_norm_yrs, " of the years are normal"), paste0("Normal Years -  ", paste(unlist(unique_norm_years), collapse = ' ')), icon=icon("calendar"), color="blue")
+})
+
 output$allnormalplot <- renderPlotly({
 
   stations<-stationsdat()
