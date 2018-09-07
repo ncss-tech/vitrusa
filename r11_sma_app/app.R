@@ -15,7 +15,7 @@ sidebar<-dashboardSidebar(
                        actionButton("usitesubmit", "Submit"), br(),p()),
               menuItem("Weather Data", tabName="nearby_stations", icon=icon("tint"),
                        menuSubItem("Nearby Stations", tabName="weather", icon=icon("map-marker")),
-                       sliderInput("station_number", "# of weather stations to use:", min=1, max=25, value=3, step=1),
+                       sliderInput("station_number", "# of weather stations to use:", min=1, max=25, value=1, step=1),
                        sliderInput("search_radius", "Max search distance (km):", min=5, max=500, value=50, step=5),
                        actionButton("submit", "Submit"), br(),p(),
               menuSubItem("Station Inventory", tabName="station_inventory", icon=icon("list-alt"))),
@@ -81,7 +81,10 @@ body<-dashboardBody(
             titlePanel("Normal Data"),
             verticalLayout(
               fluidRow(
-                valueBoxOutput("number_yrs", width=12),
+                box(p("A normal year (according to the Keys to Soil Taxonomy, 12th ed.) is defined as a year that has: 1. Annual precipitation that is plus or minus one standard deviation of the long-term (30 years or more) mean annual precipitation; and 2. Mean monthly precipitation that is plus or minus one standard deviation of the long-term monthly precipitation for 8 of the 12 months."),width=12)),
+                fluidRow(
+                # valueBoxOutput("number_yrs", width=6),
+                valueBoxOutput("number_yrs_mo", width=12),
                 box(plotlyOutput("allnormalplot"), status="primary", title="Plot (Normal Observations)", solidHeader=TRUE, collapsible=TRUE, width=6),
                 box(plotlyOutput("allnormalrainplot"), status="primary", title="Plot (Normal Precipitation)", solidHeader=TRUE, collapsible=TRUE, width=6),
                 box(DT::dataTableOutput("normalobs"), status="primary", title="Normal Observations", solidHeader=TRUE, collapsible=TRUE, collapsed=TRUE, width=6),
@@ -114,8 +117,15 @@ server <- function(input, output, session){
   library(rvest)
 
 sitedata <- reactive({
+  
+  withProgress(message=paste("Downloading Data for ", input$sid), value=1,{
+  
   s<-get_sitesoilmoist_from_NASISWebReport(usiteid = input$sid)
+  
   return(s)
+  
+  })
+  
 })
   
   
@@ -126,10 +136,11 @@ output$sitetable <- DT::renderDataTable({s <- sitedata()
 output$iniplot <- renderPlotly({
   s<-sitedata()
   # Plot all data
-  rsmmd<-ggplot(s, aes(x= as.Date(obsdate, "%m/%d/%Y"),y= dept, color=usiteid)) + scale_colour_grey() +
+  rsmmd<-ggplot(s, aes(x= as.Date(obsdate, "%m/%d/%Y"),y= dept, color=usiteid, group = 1, text = paste("Depth: ", dept, "<br>", "Date: ", as.Date(obsdate, "%m/%d/%Y")))) + scale_colour_grey() +
     geom_line(cex=0.5)+scale_y_reverse()+scale_x_date() +
+    theme(plot.margin=unit(c(1,1,1,1),"cm")) +
     labs(x="Date (year)", y="Depth to wetness (cm)", title="Raw Soil Moisture Monitoring Data")
-  ggplotly(rsmmd)
+  ggplotly(rsmmd, tooltip = c("text"))
 }
 )
 
@@ -141,7 +152,14 @@ smonth <- reactive({
 
 output$inimonthtable <- DT::renderDataTable({
 s_by_month <- smonth()
-}, options = list(paging=FALSE, scrollX="100%"))
+
+names(s_by_month) <- c("Month", "Depth")
+
+s_by_month$Depth <- round(s_by_month$Depth)
+
+s_by_month
+
+}, options = list(pageLength=12, dom = 't', scrollX="100%"), rownames = FALSE)
 
 
 
@@ -149,12 +167,13 @@ output$inimonthplot <- renderPlotly({
   
   s_by_month <- smonth()
   
-mdwbm<-ggplot(s_by_month, aes(x= `month(as.Date(obsdate, "%m/%d/%Y"))`,y= dept)) +
+mdwbm<-ggplot(s_by_month, aes(x= `month(as.Date(obsdate, "%m/%d/%Y"))`,y= dept, group=1, text = paste("Depth: ", round(dept), "<br>", "Month: ", month.abb[`month(as.Date(obsdate, "%m/%d/%Y"))`]))) +
   geom_line(cex=1) +
   scale_x_continuous(breaks = 1:12, labels = month.abb, name="Month") +
   ylim(max(s_by_month$dept), 0) +
+  theme(plot.margin=unit(c(1,1,1,1),"cm")) +
   labs(y="Depth to Wetness (cm)", title="Mean Depth to Wetness by Month (all years)")
-ggplotly(mdwbm)
+ggplotly(mdwbm, tooltip = c("text"))
 
 })
 
@@ -214,11 +233,12 @@ output$annualprecip <- renderPlotly({
  
 # Plot daily rainfall and soil moisture data
 rsmmdrrd<-ggplot() +
-  geom_path(data= station_filter, aes(x= as.Date(date),y= prcp/100, color=id)) +
+  geom_path(data= station_filter, aes(x= as.Date(date),y= prcp/100, color=id, group = 1, text = paste("ID: ", id, "<br>", "Precip: ", precip/100, "<br>", "Date: ", as.Date(date)))) +
   ylim(0, max(station_filter$prcp)/100) +
+  theme(plot.margin=unit(c(1,1,1,1),"cm")) +
   labs(y="Precipitation (cm)", x="Date (year)", title="Raw Precipitation Data", color="Station ID")
 
-ggplotly(rsmmdrrd)
+ggplotly(rsmmdrrd, tooltip = c("text"))
 
 })
 
@@ -316,15 +336,151 @@ all_years_l<-reactive({
 # 
 
 output$number_yrs <- renderValueBox({
-  valueBox(paste0(num_norm_yrs, " of the years are normal"), paste0("Normal Years -  ", paste(unlist(unique_norm_years), collapse = ' ')), icon=icon("calendar"), color="blue")
+  all_years_list <- all_years_l()
+  stations<-stationsdat()
+  s<-sitedata()
+  station_filter<-stationfilt()
+  station_annual_precip<-aggregate(cbind(prcp)~ id + year(date),data=stations,FUN=sum)
+  
+  filter_annual_precip<-aggregate(cbind(prcp)~ `year(date)`, data=station_annual_precip, FUN=mean)
+  min_normal_precip<-mean(filter_annual_precip$prcp)-sd(filter_annual_precip$prcp)
+  max_normal_precip<-mean(filter_annual_precip$prcp)+sd(filter_annual_precip$prcp)
+  
+  # Sum the monthly data
+  stations_by_month_and_year<-aggregate(cbind(prcp)~month(date)+year(date),data=stations,FUN=sum)
+  
+  #find means by month
+  month_means<-aggregate(stations_by_month_and_year, by=list(stations_by_month_and_year$`month(date`), mean)
+  
+  #Find Normal Years
+  
+  normal_yrs_station_annual_precip<-station_annual_precip %>% filter(prcp<max_normal_precip & prcp>min_normal_precip)
+  
+  #Filter only normal years
+  
+  #create lookup
+  
+  years_list<-paste(normal_yrs_station_annual_precip$`year(date)`, collapse="|")
+  
+  #Use only normal years
+  s_normal_years<-s %>%
+    filter(grepl(years_list, as.Date(obsdate, "%m/%d/%Y")))
+  
+  #Make a list of selected years
+  unique_norm_years <- unique(year(as.Date(s_normal_years$obsdate, "%m/%d/%Y")))
+  
+  #Length of normal years
+  num_norm_yrs <- length(unique_norm_years)
+  
+  valueBox(paste0(num_norm_yrs, " years meet rule 1"), paste0("Normal Years -  ", paste(unlist(unique_norm_years), collapse = ' ')), icon=icon("calendar"), color="blue")
+
+})
+
+output$number_yrs_mo <- renderValueBox({
+  all_years_list <- all_years_l()
+  stations<-stationsdat()
+  s<-sitedata()
+  station_filter<-stationfilt()
+ 
+    station_annual_precip<-aggregate(cbind(prcp)~ id + year(date),data=stations,FUN=sum)
+    
+    filter_annual_precip<-aggregate(cbind(prcp)~ `year(date)`, data=station_annual_precip, FUN=mean)
+    min_normal_precip<-mean(filter_annual_precip$prcp)-sd(filter_annual_precip$prcp)
+    max_normal_precip<-mean(filter_annual_precip$prcp)+sd(filter_annual_precip$prcp)
+    
+    # Sum the monthly data
+    stations_by_month_and_year<-aggregate(cbind(prcp)~month(date)+year(date),data=stations,FUN=sum)
+    
+    #find means by month
+    month_means<-aggregate(stations_by_month_and_year, by=list(stations_by_month_and_year$`month(date`), mean)
+    
+    #Find Normal Years
+    
+    normal_yrs_station_annual_precip<-station_annual_precip %>% filter(prcp<max_normal_precip & prcp>min_normal_precip)
+    
+    #Filter only normal years
+    
+    #create lookup
+    
+    years_list<-paste(normal_yrs_station_annual_precip$`year(date)`, collapse="|")
+    
+    #Use only normal years
+    s_normal_years<-s %>%
+      filter(grepl(years_list, as.Date(obsdate, "%m/%d/%Y")))
+    
+    #Make a list of selected years
+    unique_norm_years <- unique(year(as.Date(s_normal_years$obsdate, "%m/%d/%Y")))
+    
+    #Length of normal years
+    num_norm_yrs <- as.character(length(unique_norm_years))
+    
+    # Aggregate normal years by month
+    s_normals_by_month<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=s_normal_years,FUN=mean)
+    
+    # Select normal rainfall data
+    
+    normal_station_filter<-station_filter %>%
+      filter(grepl(years_list, date))
+    
+    # Aggregate normal rainfall
+    normal_station_filter_by_month<-aggregate(cbind(prcp)~month(date),data=normal_station_filter,FUN=sum)
+    
+    # Filter normal precip
+    filter_normal_annual_precip<-filter_annual_precip %>% filter(prcp>min_normal_precip) %>% filter(prcp<max_normal_precip)
+    
+    sd(month_means$prcp)
+    
+    month_st_dev<-aggregate(stations_by_month_and_year, by=list(stations_by_month_and_year$`month(date)`), sd)
+    
+    month_means$min<-month_means$prcp-month_st_dev$prcp
+    month_means$max<-month_means$prcp+month_st_dev$prcp
+    
+    copy_stations_by_month_and_year<-stations_by_month_and_year
+    
+    
+    copy_stations_by_month_and_year$full<-plyr::join(stations_by_month_and_year, month_means, by="month(date)", type="full")
+    
+    months_within_sd<-copy_stations_by_month_and_year[,4]
+    
+    months_within_sd_filter<- months_within_sd %>%
+      filter(prcp>min & prcp<max)
+    
+    years_with_enough_months<- months_within_sd_filter %>%
+      group_by(`year(date)`) %>%
+      filter(n() >= 8)
+    
+    
+    years_normal_months<-distinct(years_with_enough_months[,2])
+    
+    years_normal_months_matched<- years_normal_months %>%
+      filter(grepl(years_list, `year(date)`))
+    
+    all_years_list<-paste(years_normal_months_matched$`year(date)`, collapse="|")
+    
+    all_s_normal_years<-s %>%
+      filter(grepl(all_years_list, as.Date(obsdate, "%m/%d/%Y")))
+    
+    #Make a list of selected years/months
+    unique_norm_years_mo <- unique(year(as.Date(all_s_normal_years$obsdate, "%m/%d/%Y")))
+    
+    
+    #Length of normal years/months
+    num_norm_yrs_mo <- as.character(length(unique_norm_years_mo))
+    
+    valueBox(paste0(num_norm_yrs_mo, " years meet both rules"), paste0("Normal Years -  ", paste(unlist(unique_norm_years_mo), collapse = ' ')), icon=icon("calendar"), color="blue")
+
+  
 })
 
 output$allnormalplot <- renderPlotly({
 
+  withProgress(message="Generating Plot", value=1,{
+  
   stations<-stationsdat()
   s<-sitedata()
   station_filter<-stationfilt()
   all_years_list<-all_years_l()
+  s_by_month <- smonth()
 
   all_s_normal_years<-s %>%
     filter(grepl(all_years_list, as.Date(obsdate, "%m/%d/%Y")))
@@ -342,16 +498,22 @@ output$allnormalplot <- renderPlotly({
   all_s_normals_by_month$max<-all_s_normals_by_month_max[,2]
   
   # Plot Results
-  wbmwlrh<-ggplot(all_s_normals_by_month, aes(x= `month(as.Date(obsdate, "%m/%d/%Y"))`,y= dept))+
-    geom_line(cex=1)+
+  wbmwlrh<-ggplot(all_s_normals_by_month, aes(x= `month(as.Date(obsdate, "%m/%d/%Y"))`, y= dept, group=1, text = paste( "Norm Min: ", round(all_s_normals_by_month$min), "<br>", "Depth:", round(s_by_month$dept), "<br>", "Norm Depth: ", round(all_s_normals_by_month$dept), "<br>", "Norm Max: ", round(all_s_normals_by_month$max), "<br>", "Month: ", month.abb[`month(as.Date(obsdate, "%m/%d/%Y"))`]))) +
+    geom_line(cex=2, color="dodgerblue4")+
+    geom_line(data = s_by_month, aes(x= `month(as.Date(obsdate, "%m/%d/%Y"))`,y= dept), cex=1) +
     scale_x_continuous(breaks = 1:12, labels = month.abb, name="Month")+
     ylim(max(all_s_normals_by_month$max), 0)+
     geom_ribbon(aes(ymin = min, ymax = max), alpha = 0.2) +
+    theme(plot.margin=unit(c(1,1,1,1),"cm")) +
     labs(y="Depth (cm)", title="Wetness by Month with Low, RV, and High Depths")
-  ggplotly(wbmwlrh)
+  ggplotly(wbmwlrh, tooltip = c("text"))
+  })
 })
 
 output$allnormalrainplot <-renderPlotly({
+  
+  withProgress(message="Generating Plot", value=1,{
+  
   station_filter<-stationfilt()
   all_years_list<-all_years_l()
   # Select normal rainfall data
@@ -360,16 +522,28 @@ output$allnormalrainplot <-renderPlotly({
     filter(grepl(all_years_list, date))
   
   # Aggregate normal rainfall
-  all_normal_station_filter_by_month<-aggregate(cbind(prcp)~month(date),data=all_normal_station_filter,FUN=sum)
+  all_normal_station_filter_by_month_all_y<-aggregate(cbind(prcp)~month(date),data=all_normal_station_filter,FUN=sum)
+  
+  # Find number of unique years
+  unique_norm_years_rain <- unique(year(as.Date(all_normal_station_filter$date, "%m/%d/%Y")))
+  
+  #Length of unique years
+  num_norm_yrs_rain <- as.character(length(unique_norm_years_rain))
+  
+  # divide by number of years included
+  all_normal_station_filter_by_month<- data.frame(all_normal_station_filter_by_month_all_y$`month(date)`, all_normal_station_filter_by_month_all_y$prcp/as.numeric(num_norm_yrs_rain))
+  
+  names(all_normal_station_filter_by_month) <- c("month(date)", "prcp")
   
   # Plot rainfall and water table by month
   mdwbmmrbm<-ggplot() +
-    geom_col(data= all_normal_station_filter_by_month, aes(x= `month(date)`,y= prcp/100), color='blue') +
+    geom_col(data= all_normal_station_filter_by_month, aes(x= `month(date)`,y= prcp/100, group = 1, text = paste("Precip: ", round(prcp/100, 1), "<br>", "Month: ", month.abb[`month(date)`])), color='dodgerblue4', fill='dodgerblue4') +
     scale_x_continuous(breaks = 1:12, labels = month.abb, name="Month") +
     ylim(0, max(all_normal_station_filter_by_month$prcp)/100) +
-    labs(y="Depth (cm)", title="Mean Normal Precip by Month", subtitle="Years with a Normal Annual Precip and a Normal Monthly Precip in at least 8 months of the year")
-  ggplotly(mdwbmmrbm)
-  
+    theme(plot.margin=unit(c(1,1,1,1),"cm")) +
+    labs(y="Precipitation (cm)", title="Mean Normal Precip by Month", subtitle="Years with a Normal Annual Precip and a Normal Monthly Precip in at least 8 months of the year")
+  ggplotly(mdwbmmrbm, tooltip = c("text"))
+  })
 })
 
 output$sm_site<-renderLeaflet({ 
@@ -496,14 +670,18 @@ output$normalobs<-DT::renderDataTable({
   
   all_s_normals_by_month_max<- aggregate(cbind(dept)~month(as.Date(obsdate, "%m/%d/%Y")),data=all_s_normal_years,FUN=quantile, probs=0.95)
   
-  all_s_normals_by_month$min<-all_s_normals_by_month_min[,2]
+  all_s_normals_by_month$Min<-round(all_s_normals_by_month_min[,2])
   
-  all_s_normals_by_month$max<-all_s_normals_by_month_max[,2]
+  all_s_normals_by_month$Max<-round(all_s_normals_by_month_max[,2])
+  
+  names(all_s_normals_by_month) <- c("Month", "RV", "Min", "Max")
+  
+  all_s_normals_by_month$RV <- round(all_s_normals_by_month$RV)
   
   all_s_normals_by_month
   
    
-}, options = list(pageLength=12, scrollX="100%"))
+}, options = list(pageLength=12, dom = 't', scrollX="100%"), rownames = FALSE)
 
 output$normalprecip<-DT::renderDataTable({
   station_filter<-stationfilt()
@@ -514,9 +692,21 @@ output$normalprecip<-DT::renderDataTable({
     filter(grepl(all_years_list, date))
   
   # Aggregate normal rainfall
-  all_normal_station_filter_by_month<-aggregate(cbind(prcp)~month(date),data=all_normal_station_filter,FUN=sum)
+  all_normal_station_filter_by_month_all_y<-aggregate(cbind(prcp)~month(date),data=all_normal_station_filter,FUN=sum)
+  
+  # Find number of unique years
+  unique_norm_years_rain <- unique(year(as.Date(all_normal_station_filter$date, "%m/%d/%Y")))
+  
+  #Length of unique years
+  num_norm_yrs_rain <- as.character(length(unique_norm_years_rain))
+  
+  # divide by number of years included
+  all_normal_station_filter_by_month<- data.frame(all_normal_station_filter_by_month_all_y$`month(date)`, round(all_normal_station_filter_by_month_all_y$prcp/as.numeric(num_norm_yrs_rain)))
+  
+  names(all_normal_station_filter_by_month) <- c("Month", "Precipitation (mm)")
+  
   all_normal_station_filter_by_month
-}, options = list(pageLength=12, scrollX="100%"))
+}, options = list(pageLength=12, dom = 't', scrollX="100%"), rownames = FALSE)
 
 }
 

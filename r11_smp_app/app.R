@@ -141,7 +141,7 @@ body <- dashboardBody(
           color = "green"
         ),
         box(
-          p(tags$b("Instructions for Using the Soil Moisture Data Load App")),
+          p(tags$b("Instructions for Using the Soil Moisture Data Processing App")),
           p("Data should be in a common format for processing.  The data should be a .csv file(s) with 3 columns."),
           p("Column 1: date (mm/dd/YYYY)."),
           p("Column 2: time (all formats accepted)."),
@@ -153,6 +153,7 @@ body <- dashboardBody(
             The calibration point is depth at which the surface of the soil occurs.
             The total length is the length of the well (above and below the soil surface)."
           ),
+          p("Maximum number of records to upload into NASIS is 7300.  Be sure to check the number of records in your data prior to download."),
           width = 12
           )
         )
@@ -411,51 +412,6 @@ server <- function(input, output, session) {
               placeholder = "236")
     
   })
-
-  sitedata <- reactive({
-    si<-get_sitesoilmoist_from_NASISWebReport(usiteid = input$usiteid)
-    return(si)
-  })
-  
-  stationdata <- reactive({ input$submit
-    sited <- sitedata()
-    station_data<-read.csv("station_data.csv")
-    if(max(year(as.Date(sited$obsdate, "%m/%d/%Y")))>max(station_data$last_year, na.rm=TRUE)) {station_data<-ghcnd_stations()}
-    return(station_data)
-  })
-  
-  output$stationtable <-  DT::renderDataTable({withProgress(message="Loading weather station data", detail="Please Wait", value=1, {
-    station_data <- stationdata()
-    station_data
-  })
-  }, options = list(pageLength=10, scrollX="100%"))
-  
-  near_station <- reactive({ input$submit
-    sited <- sitedata()
-    station_data <- stationdata()
-    # rename column to "id" so rnoaa understands
-    s_ids<-plyr::rename(sited, c("usiteid"="id"))
-    
-    # Find nearby NOAA weather station  
-    nearest_station<-as.data.frame(meteo_nearby_stations(lat_lon_df=s_ids, lat_colname= "latstddecimaldegrees", lon_colname="longstddecimaldegrees", limit=1, station_data= station_data), col.names=NULL)
-    return(nearest_station)
-    
-  })
-  
-  stationsdat<-reactive({
-    sited<- sitedata()
-    nearest_station <-near_station()
-    stations<-meteo_pull_monitors(nearest_station[,1])
-    return(stations)
-  })
-  
-  stationfilt<-reactive({
-    sited<- sitedata()
-    stations<-stationsdat()
-    # Filter the dates of interest
-    station_filter<-stations %>% filter(date>= min(as.Date(sited$obsdate, "%m/%d/%Y"))) %>% filter(date<= max(as.Date(sited$obsdate, "%m/%d/%Y")))
-    return(station_filter)
-  })
   
   mon_data <- reactive({
     input$submit
@@ -551,6 +507,8 @@ server <- function(input, output, session) {
     
     })
   })
+  
+  
   
   sitesmoist <- reactive({
     input$submit
@@ -706,6 +664,51 @@ server <- function(input, output, session) {
     
     return(sitesoilmoist_table)
     })
+  })
+  
+  sitedata <- reactive({
+    si<-get_sitesoilmoist_from_NASISWebReport(usiteid = input$usiteid)
+    return(si)
+  })
+  
+  stationdata <- reactive({ input$submit
+    fssm <- finalsitesmoist()
+    station_data<-read.csv("station_data.csv")
+    if(max(year(as.Date(fssm$obsdate, "%Y-%m-%d")))>max(station_data$last_year, na.rm=TRUE)) {station_data<-ghcnd_stations()}
+    return(station_data)
+  })
+  
+  output$stationtable <-  DT::renderDataTable({withProgress(message="Loading weather station data", detail="Please Wait", value=1, {
+    station_data <- stationdata()
+    station_data
+  })
+  }, options = list(pageLength=10, scrollX="100%"))
+  
+  near_station <- reactive({ input$submit
+    sited <- sitedata()
+    station_data <- stationdata()
+    # rename column to "id" so rnoaa understands
+    s_ids<-plyr::rename(sited, c("usiteid"="id"))
+    
+    # Find nearby NOAA weather station  
+    nearest_station<-as.data.frame(meteo_nearby_stations(lat_lon_df=s_ids, lat_colname= "latstddecimaldegrees", lon_colname="longstddecimaldegrees", limit=1, station_data= station_data), col.names=NULL)
+    return(nearest_station)
+    
+  })
+  
+  stationsdat<-reactive({
+    sited<- sitedata()
+    nearest_station <-near_station()
+    stations<-meteo_pull_monitors(nearest_station[,1])
+    return(stations)
+  })
+  
+  stationfilt<-reactive({
+    fssm <- finalsitesmoist()
+    stations<-stationsdat()
+    # Filter the dates of interest
+    station_filter<-stations %>% filter(date>= min(as.Date(fssm$obsdate, "%Y-%m-%d"))) %>% filter(date<= max(as.Date(fssm$obsdate, "%Y-%m-%d")))
+    return(station_filter)
   })
   
   output$exporttable <- DT::renderDataTable({
