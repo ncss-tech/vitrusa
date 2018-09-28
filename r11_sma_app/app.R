@@ -233,7 +233,7 @@ output$annualprecip <- renderPlotly({
  
 # Plot daily rainfall and soil moisture data
 rsmmdrrd<-ggplot() +
-  geom_path(data= station_filter, aes(x= as.Date(date),y= prcp/100, color=id, group = 1, text = paste("ID: ", id, "<br>", "Precip: ", precip/100, "<br>", "Date: ", as.Date(date)))) +
+  geom_path(data= station_filter, aes(x= as.Date(date),y= prcp/100, color=id, group = 1, text = paste("ID: ", id, "<br>", "Precip: ", prcp/100, "<br>", "Date: ", as.Date(date)))) +
   ylim(0, max(station_filter$prcp)/100) +
   theme(plot.margin=unit(c(1,1,1,1),"cm")) +
   labs(y="Precipitation (cm)", x="Date (year)", title="Raw Precipitation Data", color="Station ID")
