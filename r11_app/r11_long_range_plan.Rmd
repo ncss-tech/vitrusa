@@ -26,18 +26,13 @@ suppressWarnings( {
   library(soilDB)
   library(ggplot2)
   library(DT)
+  library(lubridate)
   })
 ```
 
 ```{r load-data, eval = TRUE, echo = FALSE}
 
-day  <- Sys.Date()
-year <- as.numeric(format(day, "%Y"))
-fy   <- ifelse(
-  as.Date(paste0(year, "-10-01")) > day & day > as.Date(paste0(year - 1, "-09-30")),
-  year, 
-  year - 1
-  )
+fy   <- round(quarter(Sys.Date(), with_year=TRUE, fiscal_start=10))
 
 r <- lapply(seq(fy + 1, fy + 10, 1), function(x) {
   url = "https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project2_from_NASISWebReport"
@@ -91,7 +86,7 @@ gg_acres <- ggplot(r_new[idx, ], aes(x = fiscalyear, y = acre_goal)) +
   geom_point() +
   geom_line() +
   facet_grid(mlrassoarea ~ projecttypename, scale = "free_y") +
-  scale_x_continuous(breaks = seq(2018, 2027, 2)) +
+  scale_x_continuous(breaks = seq(fy+1, fy+10, 2)) +
   scale_y_continuous(labels = function(n) {format(n, scientific = FALSE)}) +
   theme(axis.text.x = element_text(angle=90, hjust=1, vjust=0.5)) + 
   ylab("Acreage") + xlab("Fiscal Year") +
@@ -101,7 +96,7 @@ gg_n <- ggplot(r_new[idx, ], aes(x = fiscalyear, y = n_project)) +
   geom_point() +
   geom_line() +
   facet_grid(mlrassoarea ~ projecttypename, scale = "free_y") +
-  scale_x_continuous(breaks = seq(2018, 2027, 2)) + 
+  scale_x_continuous(breaks = seq(fy+1, fy+10, 2)) + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
   ylab("n") + xlab("Fiscal Year") +
   ggtitle("Long Range Plan Summarized by Total Number (n) of Projects")

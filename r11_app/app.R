@@ -26,7 +26,7 @@ sidebar<-dashboardSidebar( width = 250,
               menuItem("Home", tabName="Home", selected=TRUE, icon=icon("home")),
               
               
-              menuItem("NASIS Reports", tabName="LIMS", icon=icon("flask")),
+              menuItem("NASIS Reports", icon=icon("flask"), href ="https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=Region-11-Masterlist"),
               
               #Water Table Menu
               menuItem("Water Table", icon=icon("tint"),

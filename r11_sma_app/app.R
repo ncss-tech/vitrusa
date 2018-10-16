@@ -198,6 +198,7 @@ near_station <- reactive({ input$submit
   
   # Find nearby NOAA weather station  
   nearest_station<-as.data.frame(meteo_nearby_stations(lat_lon_df=s_ids, lat_colname= "latstddecimaldegrees", lon_colname="longstddecimaldegrees", limit=isolate(input$station_number), radius=isolate(input$search_radius), station_data= station_data), col.names=NULL)
+  nearest_station$distance <- round(nearest_station$distance, 2)
   return(nearest_station)
   
 })
