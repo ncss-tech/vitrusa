@@ -1,0 +1,10 @@
+---
+  output: html_fragment
+---
+#Get started using the App by selecting a menu item on the left.
+
+![](www/arrow.png){width=75%}
+
+##Tips
+
+* This application is designed to assist in the curation of Ksat measurements calculated from amoozemeter readings.
