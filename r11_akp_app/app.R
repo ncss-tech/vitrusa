@@ -12,6 +12,7 @@ library(xlsxjars)
 library(grDevices)
 library(utils)
 library(DT)
+library(lubridate)
 
 #create a dashboard header
 
@@ -67,7 +68,7 @@ body <- dashboardBody(#create tabs to match the menu items
           "About this App",
           "The Amoozemeter Measured Saturated Hydrualic Conductivity Processing App is designed to curate data gathered with amoozemeters and format it for upload into NASIS.",
           width = 12,
-          icon = icon("users"),
+          icon = icon("database"),
           color = "blue"
         ),
         box(includeHTML("home.html"), width = 12),
@@ -90,6 +91,7 @@ body <- dashboardBody(#create tabs to match the menu items
             p("Inputs marked with an asterisk (*) are required."),
             p("Click submit button to begin processing."),
             uiOutput("am_inputs"),
+            uiOutput("sname"),
             uiOutput("am_upedonid"),
             uiOutput("am_sensor"),
             actionButton("submit", "Submit"),
@@ -113,6 +115,7 @@ body <- dashboardBody(#create tabs to match the menu items
           tabBox(
             title = "Processed Data",
             tabPanel("Plot", plotlyOutput("finalplot")),
+            tabPanel("Box Plot", plotlyOutput("boxplot")),
             tabPanel("Table", DT::dataTableOutput("exporttable")),
             width = 12
           )
@@ -173,7 +176,14 @@ server <- function(input, output, session) {
     
   })
   
-
+  output$sname <- renderUI({
+    radioButtons("sname",
+              "Data Collection:",
+              choiceNames = c("Single Horizon", "Many"),
+              choiceValues = c("Amoozemeter Ksat Calc_1hor1loc", "Amoozemeter Ksat Calculation")
+)
+    
+  })
   
   output$am_upedonid <- renderUI({
     textInput("upedonid",
@@ -208,99 +218,161 @@ server <- function(input, output, session) {
       
       adata <- isolate(input$adatainput)
       
-      try({
-        sheet1<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B3", col_names = "date", col_types = "date")
+      fetchKsat <- function(xlsxpath, ksatsht, ksrange) {
         
-        sheet1m<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G43", col_names = "k_mean", col_types = "numeric")
+        s_col <- paste(c(1:10), sep = ",")
         
-        sheet1sd<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G44", col_names = "k_sd", col_types = "numeric")
+        ds1 <-
+          read_xlsx(
+            xlsxpath,
+            ksatsht,
+            ksrange,
+            col_names = s_col,
+            col_types = "text"
+          )
         
-        sheet1horizon<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B9", col_names = "name", col_types = "text")
+        user <- ds1[2, 2]
+        date <- ds1[3, 2]
+        permeameter <- ds1[3, 7]
+        location <- ds1[4, 2]
+        iniat <- ds1[4, 8]
+        ssa <- ds1[5, 2]
+        finat <- ds1[5, 8]
+        series <- ds1[7, 2]
+        smc <- ds1[7, 8]
+        pn <- ds1[8, 2]
+        hzname <- ds1[9, 2]
+        hd <- ds1[12, 2]
+        wl <- ds1[12, 8]
+        dbtss <- ds1[13, 2]
+        iniwl <- ds1[13, 8]
+        finwl <- ds1[14, 8]
+        dwd <- ds1[14, 2]
+        chtts <- ds1[15, 2]
+        ahr <- ds1[15, 8]
+        ocu <- ds1[17, 4]
+        mksat <- ds1[43, 7]
+        sdksat <- ds1[44, 7]
+        ksatclass <- ds1[45, 8]
+        rmksat <- ds1[20, 10]
+        rksatclass <- ds1[22, 10]
         
-        sheet1data<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B2", col_names = "collector", col_types = "text")
+        ct <- ds1[24:42, 3]
+        diw <- ds1[24:42, 1]
+        et <- ds1[24:42, 4]
+        ksat <- ds1[24:42, 7]
+        oc <- ds1[24:42, 2]
+        of <- ds1[24:42, 6]
         
-        s1<-bind_cols(sheet1, sheet1data, sheet1horizon, sheet1m, sheet1sd)
+        fds1 <- bind_cols(diw, oc, ct, et, of, ksat)
         
-      }, silent = TRUE)
+        fds1 <- drop_na(fds1, 1)
+        
+        colnames(fds1) <- c('diw',	'oc',	'ct',	'et',	'of',	'ksat')
+        
+        ids1 <-
+          bind_cols(
+            user,
+            date,
+            permeameter,
+            location,
+            iniat,
+            ssa,
+            finat,
+            series,
+            smc,
+            pn,
+            hzname,
+            hd,
+            wl,
+            dbtss,
+            iniwl,
+            finwl,
+            dwd,
+            chtts,
+            ahr,
+            ocu,
+            mksat,
+            sdksat,
+            ksatclass,
+            rmksat,
+            rksatclass
+          )
+        
+        colnames(ids1) <-
+          c(
+            'user',
+            'date',
+            'permeameter',
+            'location',
+            'iniat',
+            'ssa',
+            'finat',
+            'series',
+            'smc',
+            'pn',
+            'hzname',
+            'hd',
+            'wl',
+            'dbtss',
+            'iniwl',
+            'finwl',
+            'dwd',
+            'chtts',
+            'ahr',
+            'ocu',
+            'mksat',
+            'sdksat',
+            'ksatclass',
+            'rmksat',
+            'rksatclass'
+          )
+        
+        fds1<-mutate(fds1, j=1)
+        
+        ids1<-mutate(ids1, j=1)
+        
+        final <- inner_join(ids1, fds1, by="j")
+        
+        final$date <- as_date(as.numeric(final$date), origin = "1899-12-30")
+        final$iniat <- as.numeric(final$iniat)
+        final$finat <- as.numeric(final$finat)
+        final$hd <- as.numeric(final$hd)
+        final$wl <- as.numeric(final$wl)
+        final$dbtss <- as.numeric(final$dbtss)
+        final$iniwl <- as.numeric(final$iniwl)
+        final$finwl <- as.numeric(final$finwl)
+        final$dwd <- as.numeric(final$dwd)
+        final$chtts <- as.numeric(final$chtts)
+        final$ahr <- as.numeric(final$ahr)
+        final$ocu <- as.numeric(final$ocu)
+        final$mksat <- as.numeric(final$mksat)
+        final$sdksat <- as.numeric(final$sdksat)
+        final$rmksat <- as.numeric(final$rmksat)
+        final$j <- NULL
+        final$diw <- as.numeric(final$diw)
+        final$oc <- as.numeric(final$oc)
+        final$ct <- as_datetime(as.numeric(final$ct)*86400+1, origin = final$date)
+        final$et <- as.numeric(final$et)
+        final$of <- as.numeric(final$of)
+        final$ksat <- as.numeric(final$ksat)
+        final$permeameter <- replace_na(final$permeameter, "Unknown")
+        final$pn <- replace_na(final$pn, "Unknown")
+        final$repnum <- as.numeric(as.factor(final$pn))
+        
+        return(final)
+      }
+
+      s1<-fetchKsat(isolate(adata$datapath),isolate(input$sname),"A1:J48")
+      s2<-fetchKsat(isolate(adata$datapath),isolate(input$sname),"A49:J96")
+      s3<-fetchKsat(isolate(adata$datapath),isolate(input$sname),"A97:J144")
+      s4<-fetchKsat(isolate(adata$datapath),isolate(input$sname),"A145:J192")
+      s5<-fetchKsat(isolate(adata$datapath),isolate(input$sname),"A193:J240")
       
-      #SHEET 2
-      
-      try({sheet2<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B51", col_names = "date", col_types = "date")
-      
-      sheet2m<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G91", col_names = "k_mean", col_types = "numeric")
-      
-      sheet2sd<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G92", col_names = "k_sd", col_types = "numeric")
-      
-      sheet2horizon<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B57", col_names = "name", col_types = "text")
-      
-      sheet2data<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B50", col_names = "collector", col_types = "text")
-      
-      s2<-bind_cols(sheet2, sheet2data, sheet2horizon, sheet2m, sheet2sd)
-      
-      }, silent = TRUE)
-      
-      #SHEET 3
-      
-      try({sheet3<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B99", col_names = "date", col_types = "date")
-      
-      sheet3m<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G139", col_names = "k_mean", col_types = "numeric")
-      
-      sheet3sd<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G140", col_names = "k_sd", col_types = "numeric")
-      
-      sheet3horizon<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B105", col_names = "name", col_types = "text")
-      
-      sheet3data<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B98", col_names = "collector", col_types = "text")
-      
-      s3<-bind_cols(sheet3, sheet3data, sheet3horizon, sheet3m, sheet3sd)
-      
-      }, silent = TRUE)
-      
-      #SHEET 4
-      
-      try({sheet4<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B147", col_names = "date", col_types = "date")
-      
-      sheet4m<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G187", col_names = "k", col_types = "numeric")
-      
-      sheet4sd<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G188", col_names = "k", col_types = "numeric")
-      
-      sheet4horizon<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B153", col_names = "name", col_types = "text")
-      
-      sheet4data<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B146", col_names = "collector", col_types = "text")
-      
-      s4<-bind_cols(sheet4, sheet4data, sheet4horizon, sheet4m, sheet4sd)
-      
-      }, silent = TRUE)
-      
-      #SHEET 5
-      
-      try({sheet5<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B195", col_names = "date", col_types = "date")
-      
-      sheet5m<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G235", col_names = "k_mean", col_types = "numeric")
-      
-      sheet5sd<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "G236", col_names = "k_sd", col_types = "numeric")
-      
-      sheet5horizon<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B201", col_names = "name", col_types = "text")
-      
-      sheet5data<-read_xlsx(isolate(adata$datapath), "Amoozemeter Ksat Calc_1hor1loc", "B194", col_names = "collector", col_types = "text")
-      
-      s5<-bind_cols(sheet5, sheet5data, sheet5horizon, sheet5m, sheet5sd)
-      
-      }, silent = TRUE)
-      
-      #COMBINE SHEETS
-      
-      
-      try({
-        all_data<-bind_rows(s1)
-        all_data<-bind_rows(s1, s2)
-        all_data<-bind_rows(s1, s2, s3)
-        all_data<-bind_rows(s1, s2, s3, s4)
-        all_data<-bind_rows(s1, s2, s3, s4, s5)}
-        , silent = TRUE)
-      
-      all_data$date <- as.Date(all_data$date)
+      all_data <- bind_rows(s1,s2,s3,s4,s5)
       
       return(all_data)
+      
     })
   })
   
@@ -325,15 +397,13 @@ server <- function(input, output, session) {
           
           all_data <- k_data()
           
-          all_data$name <- factor(all_data$name, levels = all_data$name[order(all_data$name, decreasing = TRUE)])
-          
           # Plot all data
-          kplot <-ggplot(all_data, aes(y = k_mean, x = name)) +
-            geom_point() +
-            geom_linerange(ymin = all_data$k_mean-all_data$k_sd, ymax = all_data$k_mean+all_data$k_sd) +
+          kplot <-ggplot(all_data, aes(y = ksat, x = permeameter)) +
+            facet_grid(hzname ~ .) +
             coord_flip() +
-            ylim(min(all_data$k_mean-(2*all_data$k_sd)), max(all_data$k_mean+(2*all_data$k_sd))) +
-            labs(x = "Horizons", y = "Mean Ksat (cm/hr)", title = "Input Ksat Data") +
+            geom_point() +
+            ylim(min(all_data$mksat-(2*all_data$sdksat)), max(all_data$mksat+(2*all_data$sdksat))) +
+            labs(x = "Permeameter #", y = "Ksat (cm/hr)", title = "Input Ksat Data") +
             theme(plot.margin=unit(c(1,1,1,1),"cm"))
           ggplotly(kplot)
         })
@@ -347,30 +417,53 @@ server <- function(input, output, session) {
 
       withProgress(message="Processing Data", value=1,{
         all_data <- k_data()
-        all_data$k_mean_um <- round(all_data$k_mean*2.77777778, 4)
-        all_data$k_sd_um <- round(all_data$k_sd*2.77777778, 2)
+        all_data$rmksat <- round(all_data$rmksat*2.77777778, 4)
+        # all_data$rsdksat <- round(all_data$rsdksat*2.77777778, 2)
+        all_data$mksat <- round(all_data$mksat*2.77777778, 4)
+        all_data$sdksat <- round(all_data$sdksat*2.77777778, 4)
+        all_data$ksat <- round(all_data$ksat*2.77777778, 4)
         
-        all_data <- separate_rows(all_data, name)
+        all_data <- separate_rows(all_data, hzname)
         
-        all_data <- filter(all_data, name != "and")
+        all_data <- filter(all_data, hzname != "and")
         
         all_data <- mutate(all_data, upedonid = isolate(input$upedonid))
         
         all_data <- mutate(all_data, sathydcondmethod = isolate(input$sensor))
         
-        all_data <- mutate(all_data, k_mean = NULL)
-        
-        all_data <- mutate(all_data, k_sd = NULL)
-        
         all_data <- mutate(all_data, usiteid = isolate(upedonid))
         
-        all_data <- all_data[,c(8, 6, 3, 1, 2, 4, 5, 7)]
+        all_data <- mutate(all_data, steadystateflag = 1)
         
-        names(all_data)[3]<-"hzname"
-        names(all_data)[4]<-"testdate"
-        names(all_data)[5]<-"datacollector"
-        names(all_data)[6]<-"sathydcondmean"
-        names(all_data)[7]<-"sathydcondstd"
+        # all_data <- mutate(all_data, oc = replace(oc, oc==20, 1))
+        # 
+        # all_data <- mutate(all_data, oc = replace(oc, oc==105, 2))
+        
+        g_all_data <- group_by(all_data, pn, hzname, permeameter)
+        
+        all_data <- mutate(g_all_data, ct = cumsum(et))
+        
+        all_data <- ungroup(all_data)
+        
+        all_data <- mutate(all_data, notes = paste0("Permeameter Number:  ", all_data$permeameter, "\n", "Location:  ", all_data$location, "\n", "Soil Survey Area:  ", ssa, "\n", "Initial Air Temperature (F):  ", all_data$iniat, "\n", "Final Air Temperature (F):  ", all_data$finat, "\n", "Series:  ", all_data$series, "\n", "Soil Moisture Content:  ", all_data$smc, "\n", "Pedon Number:  ", all_data$pn, "\n", "Actual water level in hole (cm):  ", all_data$wl, "\n", "Distance from Bottom of Bubble Tube to soil surface (cm):  ", all_data$dbtss, "\n", "Desired water depth in hole (cm):  ", all_data$dwd, "\n", "CHT tube setting (cm):  ", all_data$chtts, "\n", "Outflow chamber used:  ", all_data$ocu, "\n", "Mean Ksat class:  ", all_data$rksatclass))
+        
+        
+        names(all_data)[1]<-"datacollector"
+        names(all_data)[2]<-"testdate"
+        names(all_data)[12]<-"boreholedepth"
+        names(all_data)[15]<-"boreholewaterlevelinit"
+        names(all_data)[16]<-"boreholewaterlevelfinal"
+        names(all_data)[19]<-"boreholeradius"
+        names(all_data)[21]<-"sathydcondrepmean"
+        names(all_data)[22]<-"sathydcondrepstd"
+        names(all_data)[23]<-"sathydcondclass"
+        names(all_data)[24]<-"sathydcondmean"
+        names(all_data)[26]<-"waterdrop"
+        names(all_data)[27]<-"outflowchamberconvfact"
+        names(all_data)[29]<-"deltatime"
+        names(all_data)[31]<-"sathydcondmeasured"
+  
+
         
         return(all_data)
       })
@@ -418,7 +511,7 @@ server <- function(input, output, session) {
       )
       
       # Create a data.frame with the name and version of the workbook required for NASIS
-      wbnamecell <- data.frame("HorizonKsat", "1.0")
+      wbnamecell <- data.frame("HorizonKsat", "1.1")
       
       # Add the required NASIS data.frame to the workbook
       addDataFrame(
@@ -460,17 +553,51 @@ server <- function(input, output, session) {
           
           all_data <- finalksat()
           
-          all_data$hzname <- factor(all_data$hzname, levels = all_data$hzname[order(all_data$hzname, decreasing = TRUE)])
+          # all_data$hzname <- factor(all_data$hzname, levels = all_data$hzname[order(all_data$hzname, decreasing = TRUE)])
           
           # Plot all data
-          fkplot <-ggplot(all_data, aes(y = sathydcondmean, x = hzname)) +
-            geom_point() +
-            geom_linerange(ymin = all_data$sathydcondmean-all_data$sathydcondstd, ymax = all_data$sathydcondmean+all_data$sathydcondstd) +
+          fkplot <-ggplot(all_data, aes(y = sathydcondmeasured, x = ct, color = interaction(permeameter, pn,sep="-"))) +
+            geom_line() +
+            facet_grid(hzname ~ ., switch = "both") +
+            ylim(min(all_data$sathydcondmeasured-(1.1*all_data$sathydcondmeasured)), max(all_data$sathydcondmeasured+(1.1*all_data$sathydcondmeasured))) +
+            labs(x = "Elapsed Time \n (min)", y = "Ksat \n (micrometers/second)", title = "Processed Ksat Data") +
+            theme(plot.margin=unit(c(1,1,1,1),"cm")) +
+            guides(color=guide_legend(title="Perm # - Pedn #"))
+          gp <- ggplotly(fkplot)
+          gp[['x']][['layout']][['annotations']][[2]][['x']] <- -0.05
+          layout(gp, margin = list(l=75))
+        })
+      })
+  })
+  
+  output$boxplot <- renderPlotly({
+    if (input$submit == 0) {
+      return()
+    }
+    
+    else if (is.null(isolate(input$adatainput))) {
+      return(NULL)
+    }
+    
+    else
+      ({
+        
+        withProgress(message="Processing Data", value=1,{
+          
+          all_data <- finalksat()
+          
+          # Plot all data
+          fkplot <-ggplot(all_data, aes(y = sathydcondmeasured, x = permeameter)) +
+            geom_boxplot() +
             coord_flip() +
-            ylim(min(all_data$sathydcondmean-(2*all_data$sathydcondstd)), max(all_data$sathydcondmean+(2*all_data$sathydcondstd))) +
-            labs(x = "Horizons", y = "Mean Ksat (micrometers/second)", title = "Processed Ksat Data") +
-            theme(plot.margin=unit(c(1,1,1,1),"cm"))
-          ggplotly(fkplot)
+            facet_grid(hzname ~ ., switch = "both") +
+            ylim(min(all_data$sathydcondmeasured-(1.1*all_data$sathydcondmeasured)), max(all_data$sathydcondmeasured+(1.1*all_data$sathydcondmeasured))) +
+            labs(x = "Permeameter #", y = "Ksat \n (micrometers/second)", title = "Processed Ksat Data") +
+            theme(plot.margin=unit(c(1,1,1,1),"cm")) +
+            guides(color=guide_legend(title="Perm # - Pedn #"))
+          gp <- ggplotly(fkplot)
+          gp[['x']][['layout']][['annotations']][[2]][['x']] <- -0.05
+          layout(gp, margin = list(l=75))
         })
       })
   })

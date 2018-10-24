@@ -7,4 +7,11 @@
 
 ##Tips
 
-* This application is designed to assist in the curation of Ksat measurements calculated from amoozemeter readings.
+* An existing site populated in NASIS is required for proper upload.  User site id and user pedon id must match.
+* Be sure to check out the pedon if adding the Ksat data to an existing pedon.
+* If repetitions were done by different users on the same horizon, NASIS will create separate rows for each data collector.  To calculate the mean for all repetitions, you will need to combine them prior to processing, or after upload into NASIS.
+* Ksat readings from the spreadsheet are uploaded.  Run the Ksat calculation in NASIS to verify this value.
+* Mean ksats and standard deviations are not uploaded.  Use the calculations in NASIS to populate these values.
+* Reading numbers are calculated based on total elapsed time.
+* Data within the spreadsheet which does not have a corresponding field in NASIS are concatenated and placed in the notes field.
+* Poor data population and consistency in the spreadsheet can result in unexpected upload behavior.  Review the upload before saving. 
