@@ -7,6 +7,8 @@
 
 ##Tips
 
+* Refresh NASIS before uploading.  This ensures you have the newest import map for the excel upload.
+* The radio button selection determines which sheet in the excel document is processed. ("Amoozemeter Ksat Calc_1hor1loc" or "Amoozemeter Ksat Calculation")  The sheet names must match exactly or it will fail.
 * An existing site populated in NASIS is required for proper upload.  User site id and user pedon id must match.
 * Be sure to check out the pedon if adding the Ksat data to an existing pedon.
 * If repetitions were done by different users on the same horizon, NASIS will create separate rows for each data collector.  To calculate the mean for all repetitions, you will need to combine them prior to processing, or after upload into NASIS.
@@ -14,4 +16,5 @@
 * Mean ksats and standard deviations are not uploaded.  Use the calculations in NASIS to populate these values.
 * Reading numbers are calculated based on total elapsed time.
 * Data within the spreadsheet which does not have a corresponding field in NASIS are concatenated and placed in the notes field.
+* By default, all readings are uploaded as steady state.  You can manually uncheck this field in NASIS if needed.
 * Poor data population and consistency in the spreadsheet can result in unexpected upload behavior.  Review the upload before saving. 

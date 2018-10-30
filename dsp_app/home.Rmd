@@ -1,0 +1,10 @@
+---
+  output: html_fragment
+---
+#Get started using the App by selecting a menu item on the left.
+
+![](www/arrow.png){width=75%}
+
+##Tips
+
+* Additional features are under development.
