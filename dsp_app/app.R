@@ -16,15 +16,18 @@ library(lubridate)
 library(leaflet)
 library(leaflet.esri)
 library(leaflet.extras)
+library(crosstalk)
+library(htmlwidgets)
+library(rmarkdown)
+
+jsfile<- "https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"
 
 #create a dashboard header
 
-header <- dashboardHeader(title = span(
-  tagList(
-    img(src = "logo.png"),
-    "Dynamic Soil Properties App"
-  )
-), titleWidth = 350)
+header <- dashboardHeader(title = span(tagList(
+  img(src = "logo.png"),
+  "Dynamic Soil Properties App"
+)), titleWidth = 350)
 
 #create a sidebar and menu structure
 
@@ -44,8 +47,14 @@ sidebar <- dashboardSidebar(width = 250,
                                 "Sample Locations",
                                 tabName = "projectextent",
                                 icon = icon("map-pin")
-                                ),
-                                
+                              ),
+                              
+                              menuItem("Analysis Report", icon=icon("stack-overflow"),
+                                       menuSubItem("Report", tabName="projectreport", icon=icon("file-text")),
+                                      uiOutput("prj_list"),
+
+                                       actionButton("reportsubmit", "Submit")),
+                              
                               
                               #Source Code Menu
                               menuItem(
@@ -62,6 +71,11 @@ sidebar <- dashboardSidebar(width = 250,
 #Create a body for the dashboard
 
 body <- dashboardBody(#create tabs to match the menu items
+  
+  #styling for the progress bar position
+  tags$style(type="text/css", ".shiny-notification{position: fixed; top:33%;left:33%;right:33%;}"),
+  tags$head(tags$script(src = jsfile),tags$link(rel="stylesheet", type="text/css",href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css")),
+  
   tabItems(
     #Home tab
     tabItem(
@@ -81,64 +95,174 @@ body <- dashboardBody(#create tabs to match the menu items
       )
     ),
     
+    
     #Map tab
     
     tabItem(
       tabName = "projectextent",
       class = "active",
       titlePanel("DSP Sites"),
-      verticalLayout(fluidRow(
-  box(leafletOutput("projectextentmap"), width = 12)
+      verticalLayout(
+        fluidRow(box(
+          bscols(leafletOutput("projectextentmap"), DTOutput("site_table")), width = 12)
         ),
         
         box("This application was developed by John Hammerly.", width = 12)
-      ))
+      )
+    ),
+    
+    tabItem(
+      tabName = "projectreport",
+      titlePanel("General Analysis of DSP Master Data"),
+      verticalLayout(
+        fluidRow(
+          box(uiOutput("projectreport"), width = 12
+            
+          ),
+          box("This application was developed by John Hammerly.", width = 12)
+        )
+      )
     )
-  )
+    
+  ))
 
 ui <-
   dashboardPage(header, sidebar, body, title = "Dynamic Soil Properties App")
 
 #create a function for the server
 server <- function(input, output, session) {
+  shared_DSP_sites <-
+    SharedData$new(reactive({
+      
+      
+      sd_t <-filter(
+        read_excel("DSP_project_master_Mar2018.xlsx", sheet = "DSP_site"),
+        !is.na(`Std Latitude`)
+      )
+      
+      sd_t <- mutate(sd_t, lng = sd_t$`Std Longitude`)
+      sd_t <- mutate(sd_t, lat = sd_t$`Std Latitude`)
+      
+    }))
   
-  DSP_sites <- read_excel("DSP_project_master_Mar2018.xlsx", sheet = "DSP_site")
-  
-
-  
-  output$projectextentmap<-renderLeaflet({ input$extentsubmit
+  output$projectextentmap <- renderLeaflet({
+    input$extentsubmit
     
-    withProgress(message="Preparing Extent viewing", detail="Please Wait", value=1, {
-      
-      site_icons <-awesomeIcons(
-        icon="circle",
-        iconColor = 'black',
-        library="fa",
-        markerColor="blue")
-      
-      m<-leaflet()
-      m<-addTiles(m, group="Open Street Map")
-      
-      
-      incProgress(1/10, detail =paste("Adding Data to Map"))
-      
-      m<-addProviderTiles(m, providers$Esri.WorldImagery, group="ESRI Imagery")
-      m<-addProviderTiles(m, providers$OpenMapSurfer.AdminBounds, group="Admin Boundaries")
-      m<-hideGroup(m, c("Admin Boundaries","MLRA"))
-      m<-addEasyButton(m, easyButton(icon="fa-globe", title="Zoom to CONUS", onClick=JS("function(btn, map){map.setZoom(4);}")))
-      m<-addProviderTiles(m, providers$Esri.WorldStreetMap, group="ESRI Street")
-      m<-addProviderTiles(m, providers$Esri.WorldTopoMap, group="ESRI Topo")
-      m<-addProviderTiles(m, providers$Stamen.Terrain, group="Stamen Terrain")
-      m<-addProviderTiles(m, providers$Stamen.TonerLite, group="Stamen TonerLite")
-      m<-addWMSTiles(m, "https://SDMDataAccess.sc.egov.usda.gov/Spatial/SDM.wms?", options= WMSTileOptions(version="1.1.1", transparent=TRUE, format="image/png"), layers="mapunitpoly", group="Soil Polygons")
-      m<-addMarkers(m, data=DSP_sites, lng=DSP_sites$`Std Longitude`, lat=DSP_sites$`Std Latitude`, label=paste0("User site ID: ", DSP_sites$`User Site ID`), group="Dynamic Soil Property Sites")
-      m<-addLayersControl(m, baseGroups=c("ESRI Street", "ESRI Topo", "ESRI Imagery","Open Street Map", "Stamen Terrain", "Stamen TonerLite"),overlayGroups=c("Soil Polygons", "Admin Boundaries"))
-
-      incProgress(1/10, detail =paste("Your Map is on its way!"))
-    })
+    withProgress(message = "Preparing Extent viewing",
+                 detail = "Please Wait",
+                 value = 1,
+                 {
+                   site_icons <- awesomeIcons(
+                     icon = "circle",
+                     iconColor = 'black',
+                     library = "fa",
+                     markerColor = "blue"
+                   )
+                   
+                   m <- leaflet(data = shared_DSP_sites)
+                   m <- addTiles(m, group = "Open Street Map")
+                   
+                   
+                   incProgress(1 / 10, detail = paste("Adding Data to Map"))
+                   
+                   m <-
+                     addProviderTiles(m, providers$Esri.WorldImagery, group = "ESRI Imagery")
+                   m <-
+                     addProviderTiles(m, providers$OpenMapSurfer.AdminBounds, group = "Admin Boundaries")
+                   m <- hideGroup(m, c("Admin Boundaries", "MLRA"))
+                   m <-
+                     addEasyButton(m,
+                                   easyButton(
+                                     icon = "fa-globe",
+                                     title = "Zoom to CONUS",
+                                     onClick = JS("function(btn, map){map.setZoom(4);}")
+                                   ))
+                   m <-
+                     addProviderTiles(m, providers$Esri.WorldStreetMap, group = "ESRI Street")
+                   m <-
+                     addProviderTiles(m, providers$Esri.WorldTopoMap, group = "ESRI Topo")
+                   m <-
+                     addProviderTiles(m, providers$Stamen.Terrain, group = "Stamen Terrain")
+                   m <-
+                     addProviderTiles(m, providers$Stamen.TonerLite, group = "Stamen TonerLite")
+                   m <-
+                     addWMSTiles(
+                       m,
+                       "https://SDMDataAccess.sc.egov.usda.gov/Spatial/SDM.wms?",
+                       options = WMSTileOptions(
+                         version = "1.1.1",
+                         transparent = TRUE,
+                         format = "image/png"
+                       ),
+                       layers = "mapunitpoly",
+                       group = "Soil Polygons"
+                     )
+                   m <-
+                     addMarkers(
+                       m,
+                       group = "Dynamic Soil Property Sites"
+                     )
+                   m <-
+                     addLayersControl(
+                       m,
+                       baseGroups = c(
+                         "ESRI Street",
+                         "ESRI Topo",
+                         "ESRI Imagery",
+                         "Open Street Map",
+                         "Stamen Terrain",
+                         "Stamen TonerLite"
+                       ),
+                       overlayGroups = c("Soil Polygons", "Admin Boundaries")
+                     )
+                   
+                   incProgress(1 / 10, detail = paste("Your Map is on its way!"))
+                 })
     m
   })
   
+  # When map is clicked, show a table with site info
+  
+  # data <- reactiveValues(clickedMarker=NULL)
+  # 
+  # observeEvent(input$projectextentmap_marker_click,{
+  #   data$clickedMarker <- input$projectextentmap_marker_click
+  #   output$site_table <- renderDT({return(
+  #     subset(DSP_sites, `User Site ID` == data$clickedMarker$id)
+  #   )})
+  #   
+  #   
+  # })
+  
+  output$site_table <-DT::renderDataTable(shared_DSP_sites, server = FALSE, extensions = "Scroller", width="100%", options = list(deferRender = FALSE, scrollY=250, scroller=TRUE, scrollX = TRUE))
+
+pedon_data <- reactive({read_excel("DSP_project_master_Mar2018.xlsx", sheet = "All Data Assembled")
+  })
+
+output$prj_list <- renderUI({
+  dsp<-pedon_data()
+  selectInput("projectreport", "Choose a Project:", unique(dsp$Name))
+})
+    
+observeEvent(input$reportsubmit,{
+  updateTabItems(session, "tabs", "projectreport")
+})
+
+output$projectreport<-renderUI({ input$reportsubmit
+  
+  
+  withProgress(message="Generating Report", detail="Please Wait", value=1, {
+    
+    includeHTML(rmarkdown::render(input = "report.Rmd",
+                                  output_dir = tempdir(),
+                                  output_file = "temp.html",
+                                  envir = new.env(),
+                                  params = list(projectname = isolate(input$projectreport)),
+                                  html_fragment(number_sections=TRUE, pandoc_args = "--toc")
+    ))
+  })
+})
+
 }
 
 
