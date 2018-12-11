@@ -19,6 +19,13 @@ library(leaflet.extras)
 library(crosstalk)
 library(htmlwidgets)
 library(rmarkdown)
+library(knitr)
+library(tidyverse)
+library(purrr)
+library(aqp)
+library(kableExtra)
+library(sharpshootR)
+library(igraph)
 
 jsfile<- "https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"
 
@@ -49,9 +56,10 @@ sidebar <- dashboardSidebar(width = 250,
                                 icon = icon("map-pin")
                               ),
                               
-                              menuItem("Analysis Report", icon=icon("stack-overflow"),
+                              menuItem("Analysis Report", icon=icon("file-invoice"),
                                        menuSubItem("Report", tabName="projectreport", icon=icon("file-text")),
                                       uiOutput("prj_list"),
+                                      uiOutput("prp_list"),
 
                                        actionButton("reportsubmit", "Submit")),
                               
@@ -116,9 +124,11 @@ body <- dashboardBody(#create tabs to match the menu items
       titlePanel("General Analysis of DSP Master Data"),
       verticalLayout(
         fluidRow(
-          box(uiOutput("projectreport"), width = 12
-            
-          ),
+          # box(uiOutput("hzn_in"), width = 2),
+          # box(uiOutput("hzn_ot"), width = 2),
+          # box(actionButton("gnl_hzn", "Combine")),
+          # box(DTOutput("gnl_table")),
+          box(uiOutput("projectreport"), width = 12),
           box("This application was developed by John Hammerly.", width = 12)
         )
       )
@@ -131,7 +141,104 @@ ui <-
 
 #create a function for the server
 server <- function(input, output, session) {
+  
+  output$prj_list <- renderUI({
+    dsp<-pedon_data()
+    selectInput("projectreport", "Choose a Project:", sort(unique(dsp$Name)))
+  })
+  
+  output$prp_list <- renderUI({ 
+    dsp<-pedon_data()
+    selectInput("prp_in", "Choose Properties:", sort(names(dsp)), multiple = TRUE)
+  })
+  
+  observeEvent(input$reportsubmit,{
+    updateTabItems(session, "tabs", "projectreport")
+  })
+  
+  pedon_data <- reactive({DSP <- read_excel("DSP_project_master_Mar2018.xlsx", sheet = "All Data Assembled")
+  names(DSP) <- gsub(" ", "_", names(DSP))
+  return(DSP)
+  })  
+  
+  dsp_labels <- reactive({dsp_labels <- read_excel("DSP_project_master_Mar2018.xlsx", sheet ="dsp_coredata_label")
+  names(dsp_labels) <- gsub(" ", "_", names(dsp_labels))
+  return(dsp_labels)
+    })
+  
+output$hzn_in <- renderUI({
+  dsp <- pedon_data()
+  dsp <- dsp %>%
+    filter(Name == isolate(input$projectreport))
+  selectInput("hz_in", "Choose Horizons to Combine:", sort(unique(dsp$hor_desg)), multiple = TRUE, selectize = FALSE, size = 20)
+})
+
+output$hzn_ot <- renderUI({
+  dsp <- pedon_data()
+  dsp <- dsp %>%
+    filter(Name == isolate(input$projectreport))
+  textInput("hz_ot", "Assign a Generalized Horizon Name:")
+})
+  
+gnl_pedon_data <- reactive({ input$gnl_hzn
+  dsp <- pedon_data()
+  dsp <- dsp %>%
+    filter(Name == isolate(input$projectreport))
+  dsp <- dsp %>%
+    filter(hor_desg %in% isolate(input$hzn_in))
+  dsp <- dsp %>%
+    mutate(gnl_hzn = isolate(input$hnz_ot))
+})
+
+output$gnl_table <- renderDT({ input$gnl_hzn
+  dsp <- gnl_pedon_data()
+  return(dsp)
+}, server = FALSE, extensions = "Scroller", width="100%", options = list(deferRender = FALSE, scrollY=250, scroller=TRUE, scrollX = TRUE))
+  
+  output$srg <- renderPlot({ input$reportsubmit
+    DSP <- pedon_data()
+    
+
+    
+    DSP <- DSP %>%
+      filter(Name == isolate(input$projectreport))
+    
+    #Assign desired comparable layers (group horizons for comparisons and statistical analysis) #most horizons are covered by this list, but not all
+    cl <- c("O horizons",
+            "L horizons",
+            "A horizons", 
+            "E horizons",
+            "Bk horizons",
+            "Bt horizons",
+            "Other B horizons",
+            "C horizons",
+            'Cr and R horizons')
+    
+    # use REGEX rules to find matching horizons to assign to comparable layers
+    #adjust as needed
+    # the $ sign signifies that any character is acceptable in that position
+    cl_hor <- c('O|$O$|O$|$O' ,
+                'L|$L$|L$|$L' ,
+                'A|$A$|A$|$A' ,
+                'E|$E$|E$|$E' ,
+                'Bk|$Bk$|Bk$|$Bk' ,
+                'Bt|$Bt$|Bt$|$Bt' ,
+                'B|$B$|B$|$B' ,
+                'C|$C$|C$|$C' ,
+                'Cr|$Cr$|Cr$|$Cr|R|$R$|R$|$R' ,
+                '$Cr$|$R$')
+    
+    
+    DSP$Comp_layer <- generalize.hz(DSP$hor_desg, cl, cl_hor)
+    
+    tab <- table(DSP$Comp_layer, DSP$hor_desg)
+    m <- genhzTableToAdjMat(tab)
+    plotSoilRelationGraph(m, graph.mode = 'directed', edge.arrow.size=0.5)
+  
+  })
+  
   shared_DSP_sites <-
+    
     SharedData$new(reactive({
       
       
@@ -152,6 +259,7 @@ server <- function(input, output, session) {
                  detail = "Please Wait",
                  value = 1,
                  {
+                   
                    site_icons <- awesomeIcons(
                      icon = "circle",
                      iconColor = 'black',
@@ -202,6 +310,7 @@ server <- function(input, output, session) {
                        m,
                        group = "Dynamic Soil Property Sites"
                      )
+
                    m <-
                      addLayersControl(
                        m,
@@ -236,29 +345,19 @@ server <- function(input, output, session) {
   
   output$site_table <-DT::renderDataTable(shared_DSP_sites, server = FALSE, extensions = "Scroller", width="100%", options = list(deferRender = FALSE, scrollY=250, scroller=TRUE, scrollX = TRUE))
 
-pedon_data <- reactive({read_excel("DSP_project_master_Mar2018.xlsx", sheet = "All Data Assembled")
-  })
 
-output$prj_list <- renderUI({
-  dsp<-pedon_data()
-  selectInput("projectreport", "Choose a Project:", unique(dsp$Name))
-})
-    
-observeEvent(input$reportsubmit,{
-  updateTabItems(session, "tabs", "projectreport")
-})
 
 output$projectreport<-renderUI({ input$reportsubmit
-  
-  
+
+
   withProgress(message="Generating Report", detail="Please Wait", value=1, {
-    
+
     includeHTML(rmarkdown::render(input = "report.Rmd",
                                   output_dir = tempdir(),
                                   output_file = "temp.html",
                                   envir = new.env(),
-                                  params = list(projectname = isolate(input$projectreport)),
-                                  html_fragment(number_sections=TRUE, pandoc_args = "--toc")
+                                  params = list(projectname = isolate(input$projectreport), prop = isolate(input$prp_in)),
+                                  html_fragment(pandoc_args = "--toc")
     ))
   })
 })
