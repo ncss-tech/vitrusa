@@ -36,7 +36,13 @@ test1$ruleno<-as.numeric(factor(test1$mrulename, ordered =FALSE))
 
 test1$interprv <- rowMeans(test1[c("interplr", "interphr")], na.rm = TRUE)
 
-p <- ggplot(test1, aes(x=interprv, y=ruleno, xmin= interpll, xmax= interphh, color=factor(compname), shape=factor(compname))) + geom_point(size=2, alpha= 1/5) + geom_errorbarh(height = 0, alpha=1/5)  + facet_grid(cat ~ ruletype, scales="free_y", space = "free_y") + theme( strip.text.y=element_text(size=8, angle=0, margin=margin(t=3,r=3,b=3,l=3)),legend.position="top") + labs(y = "Interpretations", x="Overall Rating Value", title=paste0(test$muname," - ", test$nationalmusym), color="Component Name", shape="Component Name") + scale_y_continuous(trans="reverse",breaks=(unique(test1$ruleno)))
+p <- ggplot(test1, aes(x=interprv, y=ruleno, xmin= interpll, xmax= interphh, color=factor(compname), shape=factor(compname))) + 
+  geom_point(size=2, alpha= 1/5) + 
+  geom_errorbarh(height = 0, alpha=1/5)  + 
+  facet_grid(rows = vars(cat), cols = vars(ruletype), scales="free_y", space = "free_y") + 
+  theme( strip.text.y=element_text(size=8, angle=0, margin=margin(t=3,r=3,b=3,l=3)),legend.position="top") + 
+  labs(y = "Interpretations", x="Overall Rating Value", title=paste0(test$muname," - ", test$nationalmusym), color="Component Name", shape="Component Name") + 
+  scale_y_continuous(trans="reverse",breaks=(unique(test1$ruleno)), expand = expand_scale(add = 0.5))
 
 p
 
