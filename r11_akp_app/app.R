@@ -19,7 +19,7 @@ library(lubridate)
 header <- dashboardHeader(title = span(
   tagList(
     img(src = "logo.png"),
-    "Amoozemeter Measured Saturated Hydrualic Conductivity Processing App"
+    "Amoozemeter Measured Saturated Hydraulic Conductivity Processing App"
   )
 ), titleWidth = 750)
 
@@ -66,7 +66,7 @@ body <- dashboardBody(#create tabs to match the menu items
       verticalLayout(
         infoBox(
           "About this App",
-          "The Amoozemeter Measured Saturated Hydrualic Conductivity Processing App is designed to curate data gathered with amoozemeters and format it for upload into NASIS.",
+          "The Amoozemeter Measured Saturated Hydraulic Conductivity Processing App is designed to curate data gathered with amoozemeters and format it for upload into NASIS.",
           width = 12,
           icon = icon("database"),
           color = "blue"
@@ -140,7 +140,7 @@ body <- dashboardBody(#create tabs to match the menu items
   ))
 
 ui <-
-  dashboardPage(header, sidebar, body, title = "Amoozemeter Measured Saturated Hydrualic Conductivity Processing App")
+  dashboardPage(header, sidebar, body, title = "Amoozemeter Measured Saturated Hydraulic Conductivity Processing App")
 
 #create a function for the server
 server <- function(input, output, session) {
@@ -179,8 +179,8 @@ server <- function(input, output, session) {
   output$sname <- renderUI({
     radioButtons("sname",
               "Data Collection:",
-              choiceNames = c("Single Horizon", "Many"),
-              choiceValues = c("Amoozemeter Ksat Calc_1hor1loc", "Amoozemeter Ksat Calculation")
+              choiceNames = c("Single Horizon", "Many", "Field Sheet"),
+              choiceValues = c("Amoozemeter Ksat Calc_1hor1loc", "Amoozemeter Ksat Calculation", "Field Sheet")
 )
     
   })

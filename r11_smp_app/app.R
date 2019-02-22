@@ -184,9 +184,14 @@ body <- dashboardBody(
             uiOutput("sm_units"),
             box(
               solidHeader = TRUE,
-              title = "Populate 2 of the 3 variables",
+              collapsible = TRUE,
+              title = "Measurement Correction",
+              tags$h4("If measurements need correction, use the diagram below -"),
               status = "primary",
-              tags$img(src="wells.png", width="100%"),
+              tags$img(src="wells.png", width="100%"), br(),
+              tags$h4("Enter b"),
+              tags$h4(tags$b("OR")),
+              tags$h4("a and c (to calculate b)"),
               uiOutput("pipelength"),
               uiOutput("sm_sensordepth"),
               uiOutput("pipebelow"),
@@ -436,7 +441,7 @@ server <- function(input, output, session) {
     })
   })
   
-  output$mon_data <- DT::renderDataTable({
+  output$mon_data <- DT::renderDataTable({ input$submit
     monitor_data <- mon_data()
     
   }, options = list(pageLength = 5, scrollX = "100%"))
@@ -551,13 +556,16 @@ server <- function(input, output, session) {
       )
     
     monitor_data_daily_convert[, 2] <-
-      if (isolate(input$pipeb) != "" &
+      
+    if (isolate(input$sensordepth != "")) {
+      as.numeric(isolate(input$sensordepth)) - monitor_data_daily_convert[, 2]
+    }
+      else if (isolate(input$pipeb) != "" &
           isolate(input$pipel) != "") {
         as.numeric(isolate(input$pipel)) - as.numeric(isolate(input$pipeb)) - monitor_data_daily_convert[, 2]
-      }
-    else {
-      monitor_data_daily_convert[, 2]
     }
+    
+    else {monitor_data_daily_convert[, 2]}
     
     # rename columns to match NASIS
     names(monitor_data_daily_convert) <- list("obsdate", "soimoistdept")
@@ -583,7 +591,7 @@ server <- function(input, output, session) {
     })
   })
   
-  output$iniplot <- renderPlotly({
+  output$iniplot <- renderPlotly({ input$submit
     if (input$submit == 0) {
       return()
     }
@@ -617,11 +625,11 @@ server <- function(input, output, session) {
     sitesoilmoist_table <- sitesmoist()
     
     # Create bottom depth, for this sensor, the bottom depth is the lowest the sensor will register a reading
-    sitesoilmoist_table$soimoistdepb <- as.integer(input$bottomdepth)
+    sitesoilmoist_table$soimoistdepb <- as.integer(isolate(input$bottomdepth))
     
     # Create sensor depth, this is also the lowest the sensor will register a reading
     sitesoilmoist_table$soilmoistsensordepth <-
-      as.numeric(input$sensordepth)
+      as.numeric(isolate(input$sensordepth))
     
     # If the top depth, bottom depth and sensor depth are equal, leave the moisture status NA, otherwise assign a wet status.
     
@@ -637,22 +645,22 @@ server <- function(input, output, session) {
       )
     
     # Add a usiteid column
-    sitesoilmoist_table$usiteid <- input$usiteid
+    sitesoilmoist_table$usiteid <- isolate(input$usiteid)
     
     # Add an observation date kind column
     sitesoilmoist_table$obsdatekind <- "actual site observation date"
     
     # Add a datacollecter column
-    sitesoilmoist_table$datacollector <- input$office
+    sitesoilmoist_table$datacollector <- isolate(input$office)
     
     # Add ProjectName
-    sitesoilmoist_table$projectname <- input$project
+    sitesoilmoist_table$projectname <- isolate(input$project)
     
     # Add projectid
-    sitesoilmoist_table$uprojectid <- input$projectid
+    sitesoilmoist_table$uprojectid <- isolate(input$projectid)
     
     # Add sensorkind
-    sitesoilmoist_table$soilmoistsensorkind <- input$sensor
+    sitesoilmoist_table$soilmoistsensorkind <- isolate(input$sensor)
     
     # Reorder columns
     sitesoilmoist_table <-
@@ -666,8 +674,8 @@ server <- function(input, output, session) {
     })
   })
   
-  sitedata <- reactive({
-    si<-get_sitesoilmoist_from_NASISWebReport(usiteid = input$usiteid)
+  sitedata <- reactive({ input$submit
+    si<-get_sitesoilmoist_from_NASISWebReport(usiteid = isolate(input$usiteid))
     return(si)
   })
   
@@ -678,7 +686,9 @@ server <- function(input, output, session) {
     return(station_data)
   })
   
-  output$stationtable <-  DT::renderDataTable({withProgress(message="Loading weather station data", detail="Please Wait", value=1, {
+  output$stationtable <-  DT::renderDataTable({
+    input$submit
+    withProgress(message="Loading weather station data", detail="Please Wait", value=1, {
     station_data <- stationdata()
     station_data
   })
@@ -697,6 +707,7 @@ server <- function(input, output, session) {
   })
   
   stationsdat<-reactive({
+    input$submit
     sited<- sitedata()
     nearest_station <-near_station()
     stations<-meteo_pull_monitors(nearest_station[,1])
@@ -704,6 +715,7 @@ server <- function(input, output, session) {
   })
   
   stationfilt<-reactive({
+    input$submit
     fssm <- finalsitesmoist()
     stations<-stationsdat()
     # Filter the dates of interest
@@ -712,6 +724,7 @@ server <- function(input, output, session) {
   })
   
   output$exporttable <- DT::renderDataTable({
+    input$submit
     if (input$submit == 0)
       
       return()
@@ -727,6 +740,7 @@ server <- function(input, output, session) {
   }, options = list(pageLength = 5, scrollX = "100%"))
   
   output$exportplot <- renderPlotly({
+    input$submit
     if (input$submit == 0)
       
       return()
@@ -749,6 +763,7 @@ server <- function(input, output, session) {
   })
   
   output$doubleplot <- renderPlotly({
+    input$submit
     if (input$submit == 0) {
       return()
     }
@@ -770,7 +785,7 @@ server <- function(input, output, session) {
           sitesoiltable <- finalsitesmoist()
 
     rsmmd <- plot_ly() %>%
-      add_lines(x = as.Date(sitesoiltable$obsdate, format = "%Y-%m-%d"), y = sitesoiltable$soimoistdept, name = sited$usiteid) %>%
+      add_lines(x = as.Date(sitesoiltable$obsdate, format = "%Y-%m-%d"), y = sitesoiltable$soimoistdept, name = unique(sited$usiteid)) %>%
       add_bars(x = as.Date(station_filter$date, format = "%m/%d/%Y"), y = station_filter$prcp/100, name = station_filter$id, yaxis="y2") %>%
       layout(
         title = "Water Table and Precipitation",
@@ -833,6 +848,7 @@ server <- function(input, output, session) {
   )
   
   output$sm_xlsfile <- renderUI({
+    input$submit
     if (input$submit == 0)
       
       return()
@@ -842,6 +858,7 @@ server <- function(input, output, session) {
   })
   
   output$downloadtext <- renderUI({
+    input$submit
     if (input$submit == 0)
       return()
 
@@ -853,7 +870,7 @@ server <- function(input, output, session) {
     
   })
   
-  output$w_site<-renderLeaflet({ 
+  output$w_site<-renderLeaflet({ input$submit
     
     #load required libraries  
     
