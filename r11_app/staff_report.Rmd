@@ -55,10 +55,10 @@ psags <- psag[order(psag$x, decreasing = TRUE),]
 
 ```{r, fig.height = len1, out.width = '75%'}
 pl3 <- ggplot(ps) +
-  geom_col(aes(y = acre_goal, x = username, group = mlrassoarea, fill = region)) +
+  geom_col(aes(y = acre_goal/1000, x = username, group = mlrassoarea, fill = region)) +
   facet_wrap(~ as.numeric(region) + mlrassoarea, scales = "free_y", ncol = 2, dir = "v") +
   coord_flip() +
-  scale_y_continuous(labels = scales::comma) +
+  scale_y_continuous(labels = unit_format(unit = "K")) +
   labs(y = "Goal (in Acres)", x = "User Name", title = paste0(input$pfy, " Goals by Office and User Name"))
 
 pl3

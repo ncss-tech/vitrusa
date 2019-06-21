@@ -204,7 +204,7 @@ dsp <- dsp %>%
 
 ```
 
-##Fields used for comparison and data analysis
+# Fields used for comparison and data analysis
 - typically test for mgmt or condition effect (typically MGMT)
 - account for sampling scheme (plots)
 
@@ -222,7 +222,7 @@ PLOT<-"PlotID"
 PLOT_NO <- "Plot"
 ```
 
-##Layers
+# Layers
 It is helpful to group horizons into similar layers for analysis.  Layer grouping for this report follows the diagram below: 
 
 ```{r comp, echo = F, message=F, warning=F}
@@ -355,7 +355,7 @@ dsp$bd_source <- ifelse(grepl("^BD", dsp$Property),dsp$bd_source,"")
 
 ```
 
-##Summary Plots
+# Summary Plots
 
 ```{r plots, echo = F, message=F, warning=F}
 
@@ -497,7 +497,7 @@ datatable(PLOT.max, caption = "Pedon Maximum Value for each Plot", extensions = 
 ```
 
 
-##Additional Features Under Development
+# Additional Features Under Development
 
 
 ```{r echo = F, message=F, warning=F}

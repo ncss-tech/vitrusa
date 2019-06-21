@@ -6,9 +6,6 @@ library(readxl)
 library(dplyr)
 library(plotly)
 library(tidyr)
-library(xlsx)
-library(rJava)
-library(xlsxjars)
 library(grDevices)
 library(utils)
 library(DT)
@@ -98,7 +95,7 @@ body <- dashboardBody(#create tabs to match the menu items
           color = "blue"
         ),
         box(includeHTML("home.html"), width = 12),
-        box("This application was developed by John Hammerly.", width =
+        box("This application was developed by John Hammerly and Skye Wills.", width =
               12)
       )
     ),
@@ -115,7 +112,7 @@ body <- dashboardBody(#create tabs to match the menu items
           bscols(leafletOutput("projectextentmap"), DTOutput("site_table")), width = 12)
         ),
         
-        box("This application was developed by John Hammerly.", width = 12)
+        box("This application was developed by John Hammerly and Skye Wills.", width = 12)
       )
     ),
     
@@ -129,7 +126,7 @@ body <- dashboardBody(#create tabs to match the menu items
           # box(actionButton("gnl_hzn", "Combine")),
           # box(DTOutput("gnl_table")),
           box(uiOutput("projectreport"), width = 12),
-          box("This application was developed by John Hammerly.", width = 12)
+          box("This application was developed by John Hammerly and Skye Wills.", width = 12)
         )
       )
     )

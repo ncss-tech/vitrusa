@@ -16,7 +16,7 @@ om_selectInput <- function(id) {
   
 tagList(
 
-selectInput(ns("choice"), "Choose a query method -", c("Mapunit Key"="mukey","National Mapunit Symbol"="nationalmusym","Mapunit Name"="muname"), selected="mukey",multiple=FALSE),
+selectInput(ns("choice"), "Choose a query method -", c("Mapunit Key"="mu.mukey","National Mapunit Symbol"="mu.nationalmusym","Mapunit Name"="muname"), selected="mukey",multiple=FALSE),
 textInput(ns("query"), label="Enter query -", 406338),
 actionButton(ns("submit"), "Submit"), br(),p()
 )

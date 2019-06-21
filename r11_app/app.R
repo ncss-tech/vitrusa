@@ -1,6 +1,7 @@
 #load required library for creating a dashboard in shiny
 
 library(shinydashboard)
+library(plyr)
 library(leaflet)
 library(rmarkdown)
 library(soilReports)
@@ -64,7 +65,7 @@ sidebar<-dashboardSidebar( width = 250,
               
               menuItem("Project Extent", icon=icon("map-signs"),
                        menuSubItem("Extent", tabName="projectextent", icon=icon("map")),
-                       textInput(inputId="fyinput", label="Enter Fiscal Year -", 2018),
+                       textInput(inputId="fyinput", label="Enter Fiscal Year -", 2019),
                        selectizeInput("office", "Choose an Office -",
                                       c("11-ATL"="11-ATL",
                                         "11-AUR"="11-AUR",
@@ -80,7 +81,7 @@ sidebar<-dashboardSidebar( width = 250,
                                       selected="11-CLI",multiple=FALSE, options=list(create=TRUE)),
                        textAreaInput(
                          inputId="projectextent",
-                         label="Enter Project Name -","EVAL - MLRA 112 - Bates and Dennis soils, 3 to 5 percent slopes, eroded",
+                         label="Enter Project Name -","EVAL - MLRA 112 - Eram silt loam, 5 to 9 percent slopes",
                          resize="none",
                          rows=5),
                        actionButton("extentsubmit", "Submit"), p(downloadLink("projectextentdownload", "Save spatial data")), br(),p()
@@ -99,7 +100,7 @@ sidebar<-dashboardSidebar( width = 250,
               menuItem("Project Staff", icon=icon("users"),
                        menuSubItem("Report", tabName="ps", icon=icon("flag-checkered")),
                        textInput(inputId="psso", label="Enter SSO Symbol -", "11"),
-                       textInput(inputId="pfy", label="Enter Fiscal Year", "2018"),
+                       textInput(inputId="pfy", label="Enter Fiscal Year", "2019"),
                        actionButton("pssubmit", "Submit"),br(),p()
               ),
               
@@ -132,7 +133,7 @@ body<-dashboardBody(
   #add style tags for customizations  
   
   #styling for the project extent map
-  tags$style(type="text/css", "#projectextentmap {height: calc(100vh - 200px) !important;}"),
+  tags$style(type="text/css", "#projectextentmap {height: calc(100vh - 80px) !important;}"),
   #styling for the progress bar position
   tags$style(type="text/css", ".shiny-notification{position: fixed; top:33%;left:33%;right:33%;}"),
   tags$head(tags$script(src = jsfile),tags$link(rel="stylesheet", type="text/css",href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css")),
@@ -192,11 +193,8 @@ body<-dashboardBody(
     #project extent tab
     tabItem(
       tabName="projectextent",
-      verticalLayout(
-        fluidRow(
-          box(leafletOutput("projectextentmap"), width=12),
-          box("This application was developed by John Hammerly, Stephen Roecker and Dylan Beaudette.", width=12))
-      )),
+      leafletOutput("projectextentmap")
+      ),
     
     #Long Range Plan tab
     tabItem(
@@ -358,7 +356,6 @@ observeEvent(input$reportsubmit,{
     library(rmarkdown)
     library(rvest)
     library(soilDB)
-    library(plyr)
     library(sp)
     library(rgdal)
     library(leaflet)
@@ -471,7 +468,7 @@ observeEvent(input$reportsubmit,{
       m<-hideGroup(m, c("Admin Boundaries","MLRA"))
       m<-addEasyButton(m, easyButton(icon="fa-globe", title="Zoom to CONUS", onClick=JS("function(btn, map){map.setZoom(4);}")))
       m<-addEsriFeatureLayer(map=m, url='https://services.arcgis.com/SXbDpmb7xQkk44JV/arcgis/rest/services/US_MLRA/FeatureServer/0/',
-                             group="MLRA", useServiceSymbology = TRUE, popupProperty =propsToHTML(props=c("MLRARSYM","MLRA_NAME")), smoothFactor=1, options=featureLayerOptions(renderer='L.canvas'))
+                             group="MLRA", useServiceSymbology = TRUE, popupProperty =propsToHTML(props=c("MLRARSYM","MLRA_NAME")), fill = TRUE, fillColor = "white", fillOpacity = 0.1, color = "white")
       m<-addProviderTiles(m, providers$Esri.WorldStreetMap, group="ESRI Street")
       m<-addProviderTiles(m, providers$Esri.WorldTopoMap, group="ESRI Topo")
       m<-addProviderTiles(m, providers$Stamen.Terrain, group="Stamen Terrain")
