@@ -382,9 +382,8 @@ observeEvent(input$reportsubmit,{
       # make names legal
       names(d) <- make.names(names(d))
       
-      # remove Description column
-      d$Description <- NULL
-
+      # rename columns so they match later
+      names(d)[13] <- "mukey"
       
       # check: OK
       str(d)
@@ -411,6 +410,7 @@ observeEvent(input$reportsubmit,{
         
         # interpolate mukey via IN statement
         q <- paste0(q, format_SQL_in_statement(i$mukey), ';')
+        # q <- paste0(q, format_SQL_in_statement(d$MUKEY), ';')
         
         # get the results quietly
         res <- suppressMessages(SDA_query(q))
@@ -422,8 +422,8 @@ observeEvent(input$reportsubmit,{
         
         # join relevant original metadata via mukey
         # this only works within a single project ID
-        s <- sp::merge(s, unique(i[, c('mukey', 'National.Mapunit.Symbol', 'Project.Name', 'Project.Type.Name', 'Area.Symbol', 'projectiid')]), by='mukey', all.x=TRUE)
-        
+        s <- sp::merge(s, unique(i[, c('mukey', 'NATMUSYM', 'Project.Name', 'Project.Type', 'Area_Sym', 'Project.Rec.ID')]), by='mukey', all.x=TRUE)
+        # s <- sp::merge(s, unique(d[, c('mukey', 'NATMUSYM', 'Project.Name', 'Project.Type', 'Area_Sym', 'Project.Rec.ID')]), by='mukey', all.x=TRUE)
         return(s)
       }
       
