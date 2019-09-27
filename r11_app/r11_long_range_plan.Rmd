@@ -35,14 +35,14 @@ suppressWarnings( {
 fy   <- round(quarter(Sys.Date(), with_year=TRUE, fiscal_start=10))
 
 r <- lapply(seq(fy + 1, fy + 10, 1), function(x){
-  p <- get_project2_from_NASISWebReport(
+  p <- get_project_from_NASISWebReport(
     mlrassoarea = paste0(isolate(input$lrpinput), "%"), 
     # mlrassoarea = "11-IND", 
     fiscalyear = x
     )
   })
 r <- do.call("rbind", r)
-r <- r[! duplicated(r), ]
+r <- r[r$fiscalyear == r$fiscalyear_goaled, ]
 
 # r2 <- lapply(seq(fy + 1, fy + 10, 1), function(x) {
 #   url = "https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project2_from_NASISWebReport"
