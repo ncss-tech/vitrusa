@@ -38,7 +38,7 @@ r <- lapply(seq(fy + 1, fy + 10, 1), function(x) {
   url = "https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project2_from_NASISWebReport"
   # cat("getting projects for ", x, "\n")
   # p = list(p_mlrassoarea = "11-%", p_fy = as.character(x))
-  p = list(p_mlrassoarea = paste0(isolate(input$lrpinput), "%"), p_fy = x)
+  p = list(p_mlrassoarea = paste0(isolate(input$lrpinput), "%"), p_fy = x, p_projectname = "%")
   r = parseWebReport(url, args = p)
   })
 r <- do.call("rbind", r)
@@ -48,7 +48,7 @@ r <- within(r, {
   date_complete = as.Date(date_complete, format = "%Y/%m/%d")
   p_fy          = factor(paste0(fiscalyear, "-", projectiid))
   p_fy          = factor(p_fy,
-                         levels = p_fy[order(date_start, date_complete, acre_goal, decreasing = TRUE)]
+                         levels = unique(p_fy[order(date_start, date_complete, acre_goal, decreasing = TRUE)])
                          )
   acres = cut(acre_goal,
              breaks = c(0, 10000, 50000, 100000, 250000, 500000, 1000000),
