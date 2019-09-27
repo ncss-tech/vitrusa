@@ -34,18 +34,26 @@ suppressWarnings( {
 
 fy   <- round(quarter(Sys.Date(), with_year=TRUE, fiscal_start=10))
 
-r <- lapply(seq(fy + 1, fy + 10, 1), function(x) {
-  url = "https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project2_from_NASISWebReport"
-  # cat("getting projects for ", x, "\n")
-  # p = list(p_mlrassoarea = "11-%", p_fy = as.character(x))
-  p = list(p_mlrassoarea = paste0(isolate(input$lrpinput), "%"), p_fy = x, p_projectname = "%")
-  r = parseWebReport(url, args = p)
+r <- lapply(seq(fy + 1, fy + 10, 1), function(x){
+  p <- get_project2_from_NASISWebReport(
+    mlrassoarea = paste0(isolate(input$lrpinput), "%"), 
+    # mlrassoarea = "11-IND", 
+    fiscalyear = x
+    )
   })
 r <- do.call("rbind", r)
+r <- r[! duplicated(r), ]
+
+# r2 <- lapply(seq(fy + 1, fy + 10, 1), function(x) {
+#   url = "https://nasis.sc.egov.usda.gov/NasisReportsWebSite/limsreport.aspx?report_name=get_project2_from_NASISWebReport"
+#   cat("getting projects for ", x, "\n")
+#   p = list(p_mlrassoarea = "11-IND", p_fy = as.character(x), p_projectname = "%")
+#   # p = list(p_mlrassoarea = paste0(isolate(input$lrpinput), "%"), p_fy = x, p_projectname = "%")
+#   r = parseWebReport(url, args = p)
+#   })
+# r2 <- do.call("rbind", r2)
 
 r <- within(r, {
-  date_start    = as.Date(date_start,    format = "%Y/%m/%d")
-  date_complete = as.Date(date_complete, format = "%Y/%m/%d")
   p_fy          = factor(paste0(fiscalyear, "-", projectiid))
   p_fy          = factor(p_fy,
                          levels = unique(p_fy[order(date_start, date_complete, acre_goal, decreasing = TRUE)])
