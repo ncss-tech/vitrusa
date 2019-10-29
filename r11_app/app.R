@@ -5,6 +5,7 @@ library(plyr)
 library(leaflet)
 library(rmarkdown)
 library(soilReports)
+library(shinyjs)
 
 source("wt.R")
 source("om.R")
@@ -87,6 +88,14 @@ sidebar<-dashboardSidebar( width = 250,
                        actionButton("extentsubmit", "Submit"), p(downloadLink("projectextentdownload", "Save spatial data")), br(),p()
               ),
               
+              #Series Extent Map
+              
+              menuItem("Series Extent", icon=icon("fire"),
+                       menuSubItem("Extent", tabName = "seriesextent", icon =icon("map")),
+                       textInput(inputId = "seriesexinput", label = "Enter Series Name(s) -", "Marshall"),
+                       actionButton("seriesextentsubmit", "Submit"), br(),p()
+              ),
+              
               #Long Range Plan
               
               menuItem("Long Range Plan", icon=icon("plane"),
@@ -134,10 +143,13 @@ body<-dashboardBody(
   
   #styling for the project extent map
   tags$style(type="text/css", "#projectextentmap {height: calc(100vh - 80px) !important;}"),
+  tags$style(type="text/css", "#seriesextentmap {height: calc(100vh - 80px) !important;}"),
   #styling for the progress bar position
   tags$style(type="text/css", ".shiny-notification{position: fixed; top:33%;left:33%;right:33%;}"),
   tags$head(tags$script(src = jsfile),tags$link(rel="stylesheet", type="text/css",href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css")),
   tags$head(tags$script(src = pljs), tags$link(rel ="stylesheet", type="text/css", href = "https://cdn.plot.ly/plotly-latest.min.js")),
+  
+  useShinyjs(),
   
   #create tabs to match the menu items
   tabItems(
@@ -195,6 +207,12 @@ body<-dashboardBody(
       tabName="projectextent",
       leafletOutput("projectextentmap")
       ),
+    
+    #series extent tab
+    tabItem(
+      tabName="seriesextent",
+      leafletOutput("seriesextentmap")
+    ),
     
     #Long Range Plan tab
     tabItem(
@@ -348,6 +366,7 @@ observeEvent(input$reportsubmit,{
   
   observeEvent(input$extentsubmit,{
     updateTabItems(session, "tabs", "projectextent")
+    shinyjs::addClass(selector = "body", class = "sidebar-collapse")
   })
   
   extentdata <- reactive({ input$extentsubmit
@@ -474,17 +493,122 @@ observeEvent(input$reportsubmit,{
       m<-addProviderTiles(m, providers$Stamen.Terrain, group="Stamen Terrain")
       m<-addProviderTiles(m, providers$Stamen.TonerLite, group="Stamen TonerLite")
       m<-addWMSTiles(m, "https://SDMDataAccess.sc.egov.usda.gov/Spatial/SDM.wms?", options= WMSTileOptions(version="1.1.1", transparent=TRUE, format="image/png"), layers="mapunitpoly", group="Soil Polygons")
-      m<-addPolygons(m, data=sp.final, stroke=TRUE, color= ~pal(muname), weight=2, popup= paste("<b>MLRA SSO Area Symbol:  </b>", sp.final$Area.Symbol, "<br>",
-                                                                                                "<b>Project Type:  </b>", sp.final$Project.Type.Name, "<br>",
+      m<-addPolygons(m, data=sp.final, stroke=TRUE, color= ~pal(muname), weight=2, popup= paste("<b>MLRA SSO Area Symbol:  </b>", sp.final$Area_Sym, "<br>",
+                                                                                                "<b>Project Type:  </b>", sp.final$Project.Type, "<br>",
                                                                                                 "<b>Project Name:  </b>", sp.final$Project.Name, "<br>",
                                                                                                 "<b>Mapunit Key:  </b>", sp.final$mukey, "<br>",
-                                                                                                "<b>National Mapunit Symbol:  </b>", sp.final$National.Mapunit.Symbol, "<br>",
+                                                                                                "<b>National Mapunit Symbol:  </b>", sp.final$NATMUSYM, "<br>",
                                                                                                 "<b>Mapunit Name:  </b>", sp.final$muname), group="Mapunits")
       m<-addLayersControl(m, baseGroups=c("ESRI Street", "ESRI Topo", "ESRI Imagery","Open Street Map", "Stamen Terrain", "Stamen TonerLite"),overlayGroups=c("Soil Polygons", "MLRA", "Admin Boundaries", "Mapunits"))
       m<-addLegend(m, pal=pal, position="bottomleft", values= sp.final$muname)
       incProgress(1/10, detail =paste("Your Map is on its way!"))
     })
     m
+  })
+  
+  observeEvent(input$seriesextentsubmit,{
+    updateTabItems(session, "tabs", "seriesextent")
+    shinyjs::addClass(selector = "body", class = "sidebar-collapse")
+  })
+  
+  seriesextentdata <- reactive({ input$seriesextentsubmit
+    library(aqp)
+    library(soilDB)
+    library(sf)
+    library(dplyr)
+    library(ggplot2)
+    library(purrr)
+    library(DT)
+    library(leaflet)
+    library(leaflet.esri)
+    library(leaflet.extras)
+
+    
+    ser <- unlist(strsplit(isolate(input$seriesexinput), ","))
+    
+    sss <- lapply(ser, get_soilseries_from_NASISWebReport)
+    
+    srb <- do.call("rbind", sss)
+    
+    sl <- sapply(ser, seriesExtent)
+    
+    sf <- lapply(sl, st_as_sf, stringsAsFactors = FALSE)
+    
+    alsfs <- do.call("rbind", sf)
+    
+    mlra <- st_read("mlra_v42.shp")
+    
+    mlra <- st_transform(mlra, 4326)
+    
+    alsfs1 <- alsfs %>% summarize(geometry = st_union(geometry))
+    
+    alsfs1 <- st_as_sf(alsfs1)
+    
+    mlra_sub <- mlra %>% filter(st_intersects(mlra, alsfs1, sparse = FALSE))
+    
+    mlra_sub <- st_as_sf(mlra_sub)
+    
+    rgs <- data.frame(ssr = c(1:12), mlraoffice = c("portland, or", "davis, ca", "raleigh, nc", "bozeman, mt", "salina, ks", "morgantown, wv", "auburn, al", "phoenix, az", "temple, tx", "st. paul, mn", "indianapolis, in", "amherst, ma"))
+    
+    srb <- srb %>% left_join(rgs, by = "mlraoffice")
+    
+    seriestable <- srb %>% left_join(alsfs, by = c("soilseriesname" = "series"))
+    
+    seriestable <- st_as_sf(seriestable)
+    
+    stlist <- list("seriestable" = seriestable, "mlra_sub" = mlra_sub)
+    
+    return(stlist)
+    
+  })
+  
+  output$seriesextentmap<-renderLeaflet({ input$seriesextentsubmit
+    
+    withProgress(message="Preparing Extent viewing", detail="Please Wait", value=1, {
+      
+      
+      stlist <- seriesextentdata()
+      
+      seriestable <- stlist$seriestable
+      
+      mlra_sub <- stlist$mlra_sub
+      
+      pal2<- colorFactor(palette="viridis", domain=seriestable$soilseriesname)
+      
+      m2<-leaflet()
+      m2<-addTiles(m2, group="Open Street Map")
+      m2<-addProviderTiles(m2, providers$Esri.WorldImagery, group="ESRI Imagery")
+      m2<-addProviderTiles(m2, providers$HikeBike.HillShading, group="Hillshade")
+      m2<-addEasyButton(m2, easyButton(icon="fa-globe", title="Zoom to CONUS", onClick=JS("function(btn, map){map.setZoom(4);}")))
+      # m<-addEsriFeatureLayer(map=m, url='https://services.arcgis.com/SXbDpmb7xQkk44JV/arcgis/rest/services/US_MLRA/FeatureServer/0/',
+      #                        group="MLRA", useServiceSymbology = TRUE, popupProperty =propsToHTML(props=c("MLRARSYM","MLRA_NAME")), fill = TRUE, fillColor = "white", fillOpacity = 0.1, color = "white")
+      m2<-addProviderTiles(m2, providers$Esri.WorldStreetMap, group="ESRI Street")
+      m2<-addProviderTiles(m2, providers$Esri.WorldTopoMap, group="ESRI Topo")
+      m2<-addProviderTiles(m2, providers$Stamen.Terrain, group="Stamen Terrain")
+      m2<-addProviderTiles(m2, providers$Stamen.TonerLite, group="Stamen TonerLite")
+      m2<-addWMSTiles(m2, "https://SDMDataAccess.sc.egov.usda.gov/Spatial/SDM.wms?", options= WMSTileOptions(version="1.1.1", transparent=TRUE, format="image/png"), layers="mapunitpoly", group="Soil Polygons")
+      m2<-addPolygons(m2, data=mlra_sub, stroke = TRUE, color = "red", fill = TRUE, fillColor = "white", fillOpacity = 0.1, weight = 2, popup= paste("<b>MLRA SYM:  </b>", mlra_sub$MLRARSYM, "<br>",
+                                                                                                                                                   "<b>MLRA NAME:  </b>", mlra_sub$MLRA_NAME, "<br>"
+      ), group = "MLRA")
+      m2<-addPolygons(m2, data=seriestable, stroke=TRUE, color= ~pal2(soilseriesname), weight=2, popup= paste("<b>Series Name:  </b>", seriestable$soilseriesname, "<br>",
+                                                                                                           "<b>Acres:  </b>", seriestable$acres, "<br>",
+                                                                                                           "<b>Status:  </b>", seriestable$soilseriesstatus, "<br>",
+                                                                                                           "<b>Benchmark:  </b>", seriestable$benchmarksoilflag, "<br>",
+                                                                                                           "<b>STATSGO:  </b>", seriestable$statsgoflag, "<br>",
+                                                                                                           "<b>Region Resp:  </b>", seriestable$mlraoffice, "<br>",
+                                                                                                           "<b>SSRSYM:  </b>", seriestable$ssr, "<br>",
+                                                                                                           "<b>Type Loc. ST:  </b>", seriestable$areasymbol, "<br>",
+                                                                                                           "<b>Classification:  </b>", seriestable$taxclname, "<br>",
+                                                                                                           "<b>Proposed:  </b>", seriestable$originyear, "<br>",
+                                                                                                           "<b>Established:  </b>", seriestable$establishedyear, "<br>",
+                                                                                                           "<b>Updated:  </b>", seriestable$soiltaxclasslastupdated, "<br>"
+      ), group="Series")
+      
+      m2<-addLayersControl(m2, baseGroups=c("Stamen TonerLite", "ESRI Street", "ESRI Topo", "ESRI Imagery","Open Street Map", "Stamen Terrain", "Hillshade"),overlayGroups=c("Soil Polygons", "Series", "MLRA"))
+      m2<-addLegend(m2, pal=pal2, position="bottomleft", values= seriestable$soilseriesname)
+      incProgress(1/10, detail =paste("Your Map is on its way!"))
+    })
+    m2
   })
 
   output$projectextentdownload<- downloadHandler(      
