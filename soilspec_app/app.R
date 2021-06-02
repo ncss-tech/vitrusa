@@ -19,7 +19,7 @@ library(DT)
 library(aqp)
 library(tactile)
 library(reshape2)
-library(lattice)
+library(signal)
 
 # DONE - to pull ID column from the first column in the lab data - no longer need file2 of ids
 # TODO: sanity check: build in validation so that on import the files are checked for the same number of rows.
@@ -29,7 +29,7 @@ library(lattice)
 # TODO: add some hzname aggregation options via genhz logic - possibly a 'Plot Aggregated Spectra' tab
 # aggregate spectra by taking the mean values across spectra within each hzname group
 #d_ag <- aggregate_spectra(d, fun = mean, id = "hzname")
-# TODO: add SG and smoothing options
+# TODO: add Savitzky-Golay smoothing filter options to a Data Prep sub-tab
 # TODO: test label_field for categorical or continuous and adjust color ramps in plot
 
 ## TODO: model columns should be numeric columns only otherwise the app will crash
@@ -41,20 +41,23 @@ ui <- navbarPage("Soil Spectroscopy",
                  tabPanel("About",
                      titlePanel("Soil Spectroscopy App"),
                      p('This app was designed for exploring spectral data and building models from spectra of soil samples and associated laboratory data.  The app allows the user to load data, explore interactive plots, randomly split the data and build a Partial Least Squares Regression (PLSR) model from a calibration set and then test the model using a validation set.  Additional features include a tab for identifying outliers among the spectral data or among the lab data.'),
-                      p('The app includes a demo mode on the Load and Explore Data tab which will load a small dataset of VNIR spectra and associated lab data for exploring the functionality of the app.'),
+                      p('The app includes example data on the Load and Explore Data tab which will load a small dataset of VNIR spectra and associated lab data for exploring the functionality of the app.'),
                      h3('Instructions and workflow:'),
                      h4('1) Load Data'), 
-                     p(' - Data can be loaded into the app via two csv files, one of spectral data (wavelength and spectral values) and another of the lab data values with a unique ID column in the first position. These files must be of equal record length. Lab data is visible in the Table tab and a simple black and white plot of all spectra can be viewed in the Plot all spectra tab.'),
-                     h4('2) Interactive Spectra Plots'), 
+                     p(' - Data can be loaded into the app via two csv files, one of spectral data (wavelength and spectral values) and another of the lab data values with a unique ID column in the first position. These files must be of equal record length. Lab data is visible in the Table tab and a basic plot of all spectra displayed in spectra-derived Munsell soil colors can be viewed in the Plot all spectra tab.'),
+                     h4('2) Data Prep'),
+                     p(' - For VNIR data, splicing at wavelength ranges of 750:1000 and 1830:1950 is performed when the data is loaded.  Further derivation and smoothing using Savitzky-Golay filtering can be applied to the spectral data.'),
+                     h4('3) Interactive Spectra Plots'), 
                      p(' - This interactive plot of the spectra can be used to explore the variation related to the columns in the lab data.  Hovering over the plot will show the data values and identify the sample ID for each spectra. Clicking on the objects in the legend will control which spectra are shown.'),
-                     h4('3) Model'), 
-                     p(' - Data can be split on the model tab using the slider for the percentage of the split to be used.  The user selects the variable in the lab data they wish to model. After clicking the Run! button the app will display a principle components plot of Root Mean Squared Error of Prediction (RMSEP). This indicates the number of principle components which will yield the least amount of error and should be used for the most robust model.'),
-                     h4('4) Test Model'), 
-                     p(' - The user selects the appropriate number of components to use in the model, runs the model and an interactive plot of model performance is displayed.  Metrics from the model can be shown by clicking the View Statistics button.  Model output and associated split datasets can be downloaded as an .Rda file for later use.'),
-                     h4('5) Outlier Detection'),
+                     h4('4) Outlier Detection'),
                      p(' - Here the user can generate two different outlier plots.  One for the similarity and Mahalanobis Distance among the spectra and another of standard deviation versus mean error for the selected variable from the lab data.'),
+                     h4('5) Model'), 
+                     p(' - Data can be split on the model tab using the slider for the percentage of the split to be used.  The user selects the variable in the lab data they wish to model. After clicking the Run! button the app will display a principle components plot of Root Mean Squared Error of Prediction (RMSEP). This indicates the number of principle components which will yield the least amount of error and should be used for the most robust model.'),
+                     h4('6) Test Model'), 
+                     p(' - The user selects the appropriate number of components to use in the model, runs the model and an interactive plot of model performance is displayed.  Metrics from the model can be shown by clicking the View Statistics button.  Model output and associated split datasets can be downloaded as an .Rda file for later use.'),
                      tags$hr(),
-                     p('Version 1.0 - designed and developed by Kian Speck and Jay Skovlin.')
+                     #p('Version 1.0 -- designed and developed by Kian Speck and Jay Skovlin.'),
+                     p(paste0('Version 1.0 -- ', Sys.Date(), ' - designed and developed by Kian Speck and Jay Skovlin.'))
                      ),
                  
               tabPanel("Load and Explore Data",
@@ -80,6 +83,10 @@ ui <- navbarPage("Soil Spectroscopy",
         
         actionButton("example", "Load Example Spectra"),
        
+        # selectInput(inputId = "wl_select",
+        #                    label = "Wavelength range",
+        #                    choices = c("VNIR: 350:2500" = '350:2500', "MIR" = '350:6000', "VNIR & MIR"),
+        #                    selected = "VNIR"),
         
         checkboxInput("header","Header", TRUE),
         
@@ -102,10 +109,13 @@ ui <- navbarPage("Soil Spectroscopy",
     id = "dataset",
     tabPanel("Table", DT::dataTableOutput("rendered_file")),
     tabPanel("Plot all spectra", plotOutput("test"),
-             tags$hr(),
-             )
+                tags$hr(),
+             ),
+    tabPanel("Data Prep Options", plotOutput("test1"))    
+             
+    )
   )
-)
+#)
                 ),
          tags$hr(),
                 
@@ -241,6 +251,7 @@ tabPanel("Outlier Detection",
 
       )
 
+
 server <- function(input,output,session){
   options(shiny.maxRequestSize=30*1024^2)
 #load data ================================================
@@ -286,6 +297,7 @@ server <- function(input,output,session){
                           sep = input$sep)}
   })
   
+  
 #labdata viewer=============================================
   output$checkbox <- renderUI({
     checkboxGroupInput(inputId = "select_var",
@@ -311,12 +323,14 @@ server <- function(input,output,session){
   color_mun <- reactive({
     # create full range spectral DF 
     wl <- 350:2500
+    #wl <- input$wl_select
+    #print(wl)
     nir <- inFile()
     id <- unlist(inFile3()[1])
     dd <- SpectraDataFrame(wl= wl, nir = nir, id = id,
                            units ="nm", data = inFile3())
     
-    
+    #print(str(dd))
     
     # cut to specified wl range
     d <- cut(dd, wl= 380:730)
@@ -417,6 +431,7 @@ server <- function(input,output,session){
     req(!is.null(input$select_var3) || !is.na(input$select_var3))
     
     wl <- 350:2500
+    #wl <- input$wl_select
     nir <- inFile()
     id <- inFile3()[1]
     s <- SpectraDataFrame(wl= wl, 
@@ -430,6 +445,9 @@ server <- function(input,output,session){
     raw <- spectacles::splice(s, 
              locations = list(c(750, 1000), c(1830, 1950)))
     
+    # apply Savitzky-Golay smoothing filter
+    raw <- apply_spectra(raw, sgolayfilt, n = 33, p = 4)
+    
     m <- melt_spectra(raw, attr = cols)
     
     })
@@ -442,6 +460,7 @@ server <- function(input,output,session){
     req(!is.null(input$select_var3) || !is.na(input$select_var3))
     
     wl <- 350:2500
+    #wl <- input$wl_select
     nir <- log10(1/inFile())
     id <- inFile3()[1]
     s <- SpectraDataFrame(wl= wl, 
@@ -454,6 +473,9 @@ server <- function(input,output,session){
     
     abs <- spectacles::splice(s, 
                 locations = list(c(750, 1000), c(1830, 1950)))
+    
+    # apply Savitzky-Golay smoothing filter
+    abs <- apply_spectra(abs, sgolayfilt, n = 33, p = 4)
     
     m <- melt_spectra(abs, attr = cols)
     
@@ -517,6 +539,7 @@ re <- eventReactive(trigger(),{
     req(input$choice == 'reflectance_m')
     
     wl <- 350:2500
+    #wl <- input$wl_select
     nir <- inFile()
     id <- inFile3()[1]
     s <- SpectraDataFrame(wl= wl, 
@@ -528,6 +551,9 @@ re <- eventReactive(trigger(),{
     raw <- spectacles::splice(s, 
        locations = list(c(750, 1000), c(1830, 1950)))
     
+    # apply Savitzky-Golay smoothing filter
+    raw <- apply_spectra(raw, sgolayfilt, n = 33, p = 4)
+    
     spectras <- raw
   })
   
@@ -536,6 +562,7 @@ re <- eventReactive(trigger(),{
     req(input$choice == 'absorbance_m')
     
     wl <- 350:2500
+    #wl <- input$wl_select
     nir <- log10(1/inFile())
     id <- inFile3()[1]   
     s <- SpectraDataFrame(wl= wl, 
@@ -546,6 +573,9 @@ re <- eventReactive(trigger(),{
     
     abs <- spectacles::splice(s, 
         locations = list(c(750, 1000), c(1830, 1950)))
+    
+    # apply Savitzky-Golay smoothing filter
+    abs <- apply_spectra(abs, sgolayfilt, n = 33, p = 4)
     
     spectras <- abs
     
@@ -604,7 +634,7 @@ re <- eventReactive(trigger(),{
                    validation = "LOO")
      
     # print(summary(model))
-     print(str(spectras_cal1))
+    # print(str(spectras_cal1))
      
      rmsep <- RMSEP(model, newdata= spectras_val1)
      
@@ -625,9 +655,9 @@ re <- eventReactive(trigger(),{
   })
   
   observeEvent(input$run,{
-    print(input$sampleSeed)
-    print(input$sampleSize)
-    print(input$components)
+    # print(input$sampleSeed)
+    # print(input$sampleSize)
+    # print(input$components)
   }) 
  
 #model_plot=====================================================
@@ -672,7 +702,7 @@ re <- eventReactive(trigger(),{
       prediction <- predict(model, ncomp = n_comp, 
                             newdata = spectra(spectras_val1))
       
-      print(prediction)
+      #print(prediction)
       training <- predict(model, ncomp = n_comp)
       
       prediction1 <- as.matrix(prediction)
@@ -760,7 +790,7 @@ re <- eventReactive(trigger(),{
       
       stat_dat[3,] <- round(RPD_test, 3)
       stat_dat
-      print(stat_dat)
+      #print(stat_dat)
     
     })
 #test_model_plot================================================

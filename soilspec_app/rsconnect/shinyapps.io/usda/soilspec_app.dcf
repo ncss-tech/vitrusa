@@ -5,9 +5,9 @@ account: usda
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4218793
-bundleId: 4669688
+bundleId: 4669939
 url: https://usda.shinyapps.io/soilspec_app/
-when: 1622654548.25449
-lastSyncTime: 1622654548.25449
+when: 1622660069.02333
+lastSyncTime: 1622660069.02333
 asMultiple: FALSE
 asStatic: FALSE
