@@ -1,0 +1,13 @@
+name: soilspec_app
+title: soilspec_app
+username:
+account: usda
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4218793
+bundleId: 4669688
+url: https://usda.shinyapps.io/soilspec_app/
+when: 1622654548.25449
+lastSyncTime: 1622654548.25449
+asMultiple: FALSE
+asStatic: FALSE

@@ -232,7 +232,7 @@ tabPanel("Outlier Detection",
            ),
            
            mainPanel(
-             plotlyOutput("result_test"),
+             plotlyOutput("result_test",),
              dataTableOutput("result_table")
            )
          )
@@ -243,15 +243,50 @@ tabPanel("Outlier Detection",
 
 server <- function(input,output,session){
   options(shiny.maxRequestSize=30*1024^2)
-#labdata viewer================================================
-  inFile3 <- reactive({
-    req(input$file3)
-    read.csv(input$file3$datapath,
-             header = input$header,
-             sep = input$sep)
+#load data ================================================
+  # inFile3 <- reactive({
+  #   req(input$file3)
+  #   read.csv(input$file3$datapath,
+  #            header = input$header,
+  #            sep = input$sep)
+  #   
+  # })
+  
+  # inFile <- reactive({
+  #   req(input$file)
+  # 
+  #   file_user <- read.csv(input$file$datapath)
+  # 
+  #   inFile <- as.data.frame(file_user)
+  # 
+  #  })
+  # load example data files on server
+  inFile <- reactive({
     
+    if(input$example == 1){
+      inFile <- as.data.frame(read.csv(file = "lab_spectra_csv.csv",
+                                       header = TRUE,
+                                       sep = ",")) 
+      } else {
+      req(input$file)
+      file_user <- read.csv(input$file$datapath)
+      inFile <- as.data.frame(file_user)}
   })
   
+  inFile3 <- reactive({
+    
+    if(input$example == 1) {
+      read.csv(file = "lab_data_csv.csv",
+               header = TRUE,
+               sep = ",")
+      } else {
+      req(input$file3)
+      inFile3 <- read.csv(input$file3$datapath,
+                          header = input$header,
+                          sep = input$sep)}
+  })
+  
+#labdata viewer=============================================
   output$checkbox <- renderUI({
     checkboxGroupInput(inputId = "select_var",
                        label = "Select variables",
@@ -272,28 +307,7 @@ server <- function(input,output,session){
     }
   })
 #visualize===================================================
-  # load example data files on server
-  inFile <- eventReactive(input$example, {
-    read.csv(source("lab_spectra_csv.csv"),
-             header = TRUE,
-             sep = ",")
-  })
-   
-  inFile3 <- eventReactive(input$example, {
-   read.csv(source("lab_data_csv.csv"),
-            header = TRUE,
-            sep = ",")
-  })
-  
-  inFile <- reactive({
-    req(input$file)
-    
-    file_user <- read.csv(input$file$datapath)
-    
-    inFile <- as.data.frame(file_user)
-    
-  })
-  
+
   color_mun <- reactive({
     # create full range spectral DF 
     wl <- 350:2500
@@ -397,8 +411,8 @@ server <- function(input,output,session){
   
   #reflectance=================================
   reflectance <- reactive({
-    req(input$file)
-    req(input$file3)
+    #req(input$file)
+    #req(input$file3)
     req(input$radio == 'Reflectance')
     req(!is.null(input$select_var3) || !is.na(input$select_var3))
     
@@ -422,8 +436,8 @@ server <- function(input,output,session){
   
 #absorbance=========================================
   absorbance <- reactive({
-    req(input$file)
-    req(input$file3)
+    #req(input$file)
+    #req(input$file3)
     req(input$radio == 'Absorbance')
     req(!is.null(input$select_var3) || !is.na(input$select_var3))
     
@@ -491,14 +505,15 @@ re <- eventReactive(trigger(),{
   output$newdata <- renderPlotly({ 
     withProgress(message="Generating plot", detail="Please Wait", value=1, { 
       if(is.null(input$select_var3) || is.na(input$select_var3)){return()}
-      plotly_build(ggplotly(re(), tooltip = "text"))
+      ggplotly(re(), tooltip = "text")
+      #plotly_build(ggplotly(re(), tooltip = "text"))
     })
   })
 #model=========================================================
 #choices###
   
   reflectance_m <- reactive({
-    req(input$file)
+    #req(input$file)
     req(input$choice == 'reflectance_m')
     
     wl <- 350:2500
@@ -517,7 +532,7 @@ re <- eventReactive(trigger(),{
   })
   
   absorbance_m <- reactive({
-    req(input$file)
+    #req(input$file)
     req(input$choice == 'absorbance_m')
     
     wl <- 350:2500
@@ -756,7 +771,8 @@ re <- eventReactive(trigger(),{
     })
     output$result_test <- renderPlotly({
       
-      plotly_build(ggplotly(re3(), tooltip = "text"))
+      ggplotly(re3(), tooltip = "text")
+      #plotly_build(ggplotly(re3(), tooltip = "text"))
       
     })
     
@@ -864,7 +880,8 @@ re <- eventReactive(trigger(),{
     
     output$result_od <- renderPlotly({
       withProgress(message="Generating plot", detail="Please Wait", value=1, { 
-        plotly_build(ggplotly(re4(), tooltip = "text"))
+        ggplotly(re4(), tooltip = "text")
+        #plotly_build(ggplotly(re4(), tooltip = "text"))
       })
     }) 
     
