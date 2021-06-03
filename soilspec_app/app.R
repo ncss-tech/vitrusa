@@ -527,7 +527,7 @@ re <- eventReactive(trigger(),{
   output$newdata <- renderPlotly({ 
     withProgress(message="Generating plot", detail="Please Wait", value=1, { 
       if(is.null(input$select_var3) || is.na(input$select_var3)){return()}
-      ggplotly(re(), tooltip = "text")
+      partial_bundle(toWebGL(ggplotly(re(), tooltip = "text")))
       #plotly_build(ggplotly(re(), tooltip = "text"))
     })
   })
@@ -801,7 +801,7 @@ re <- eventReactive(trigger(),{
     })
     output$result_test <- renderPlotly({
       
-      ggplotly(re3(), tooltip = "text")
+      partial_bundle(toWebGL(ggplotly(re3(), tooltip = "text")))
       #plotly_build(ggplotly(re3(), tooltip = "text"))
       
     })
@@ -910,7 +910,7 @@ re <- eventReactive(trigger(),{
     
     output$result_od <- renderPlotly({
       withProgress(message="Generating plot", detail="Please Wait", value=1, { 
-        ggplotly(re4(), tooltip = "text")
+        partial_bundle(toWebGL(ggplotly(re4(), tooltip = "text")))
         #plotly_build(ggplotly(re4(), tooltip = "text"))
       })
     }) 
