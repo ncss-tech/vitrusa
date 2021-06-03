@@ -541,7 +541,8 @@ re <- eventReactive(trigger(),{
   output$newdata <- renderPlotly({ 
     withProgress(message="Generating plot", detail="Please Wait", value=1, { 
       if(is.null(input$select_var3) || is.na(input$select_var3)){return()}
-      partial_bundle(ggplotly(re(), tooltip = "text"))
+      ggplotly(re(), tooltip = "text")
+      #partial_bundle(ggplotly(re(), tooltip = "text"))
       #plotly_build(ggplotly(re(), tooltip = "text"))
     })
   })
