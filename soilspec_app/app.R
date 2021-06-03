@@ -20,6 +20,7 @@ library(aqp)
 library(tactile)
 library(reshape2)
 library(signal)
+library(rlang)
 
 # DONE - to pull ID column from the first column in the lab data - no longer need file2 of ids
 # TODO: sanity check: build in validation so that on import the files are checked for the same number of rows.
@@ -31,6 +32,7 @@ library(signal)
 #d_ag <- aggregate_spectra(d, fun = mean, id = "hzname")
 # TODO: add Savitzky-Golay smoothing filter options to a Data Prep sub-tab
 # TODO: test label_field for categorical or continuous and adjust color ramps in plot
+# TODO: optimize graphic by reducing spectra resolution from 1nm to 10 or 20nm for plotting
 
 ## TODO: model columns should be numeric columns only otherwise the app will crash
 ## ISSUE: layer_seq is numeric but not useful - remove as well
@@ -83,10 +85,10 @@ ui <- navbarPage("Soil Spectroscopy",
         
         actionButton("example", "Load Example Spectra"),
        
-        # selectInput(inputId = "wl_select",
-        #                    label = "Wavelength range",
-        #                    choices = c("VNIR: 350:2500" = '350:2500', "MIR" = '350:6000', "VNIR & MIR"),
-        #                    selected = "VNIR"),
+        selectInput(inputId = "wl_select",
+                           label = "Wavelength range",
+                           choices = c("VNIR: 350:2500" = paste0(350, ":", 2500), "MIR: 350:6000" = paste0(350, ":", 6000)),
+                           selected = "VNIR: 350:2500"),
         
         checkboxInput("header","Header", TRUE),
         
@@ -322,8 +324,11 @@ server <- function(input,output,session){
 
   color_mun <- reactive({
     # create full range spectral DF 
-    wl <- 350:2500
+    #wl <- 350:2500
     #wl <- input$wl_select
+    # wl <- parse(text = input$wl_select)
+    wl <- eval(parse_expr(input$wl_select))
+    # wl <- eval(wl)
     #print(wl)
     nir <- inFile()
     id <- unlist(inFile3()[1])
@@ -430,8 +435,8 @@ server <- function(input,output,session){
     req(input$radio == 'Reflectance')
     req(!is.null(input$select_var3) || !is.na(input$select_var3))
     
-    wl <- 350:2500
-    #wl <- input$wl_select
+    #wl <- 350:2500
+    wl <- eval(parse_expr(input$wl_select))
     nir <- inFile()
     id <- inFile3()[1]
     s <- SpectraDataFrame(wl= wl, 
@@ -448,7 +453,16 @@ server <- function(input,output,session){
     # apply Savitzky-Golay smoothing filter
     raw <- apply_spectra(raw, sgolayfilt, n = 33, p = 4)
     
+    # could resample here with spectacles methods on the spectral DF
+    #raw <- ???
+    
     m <- melt_spectra(raw, attr = cols)
+    #print(str(m))
+    
+    # resample to lower res for plotting
+    #wav <- as.numeric(length(m$wl))
+    #print(head(wav))
+    #m <- prospectr::resample(m$nir, wav, seq(350, 2500, 2), interpol = 'spline')
     
     })
   
@@ -459,8 +473,8 @@ server <- function(input,output,session){
     req(input$radio == 'Absorbance')
     req(!is.null(input$select_var3) || !is.na(input$select_var3))
     
-    wl <- 350:2500
-    #wl <- input$wl_select
+    #wl <- 350:2500
+    wl <- eval(parse_expr(input$wl_select))
     nir <- log10(1/inFile())
     id <- inFile3()[1]
     s <- SpectraDataFrame(wl= wl, 
@@ -527,7 +541,7 @@ re <- eventReactive(trigger(),{
   output$newdata <- renderPlotly({ 
     withProgress(message="Generating plot", detail="Please Wait", value=1, { 
       if(is.null(input$select_var3) || is.na(input$select_var3)){return()}
-      partial_bundle(toWebGL(ggplotly(re(), tooltip = "text")))
+      partial_bundle(ggplotly(re(), tooltip = "text"))
       #plotly_build(ggplotly(re(), tooltip = "text"))
     })
   })
@@ -538,8 +552,8 @@ re <- eventReactive(trigger(),{
     #req(input$file)
     req(input$choice == 'reflectance_m')
     
-    wl <- 350:2500
-    #wl <- input$wl_select
+    #wl <- 350:2500
+    wl <- eval(parse_expr(input$wl_select))
     nir <- inFile()
     id <- inFile3()[1]
     s <- SpectraDataFrame(wl= wl, 
@@ -561,8 +575,8 @@ re <- eventReactive(trigger(),{
     #req(input$file)
     req(input$choice == 'absorbance_m')
     
-    wl <- 350:2500
-    #wl <- input$wl_select
+    #wl <- 350:2500
+    wl <- eval(parse_expr(input$wl_select))
     nir <- log10(1/inFile())
     id <- inFile3()[1]   
     s <- SpectraDataFrame(wl= wl, 
@@ -801,7 +815,7 @@ re <- eventReactive(trigger(),{
     })
     output$result_test <- renderPlotly({
       
-      partial_bundle(toWebGL(ggplotly(re3(), tooltip = "text")))
+      partial_bundle(ggplotly(re3(), tooltip = "text"))
       #plotly_build(ggplotly(re3(), tooltip = "text"))
       
     })
@@ -910,7 +924,7 @@ re <- eventReactive(trigger(),{
     
     output$result_od <- renderPlotly({
       withProgress(message="Generating plot", detail="Please Wait", value=1, { 
-        partial_bundle(toWebGL(ggplotly(re4(), tooltip = "text")))
+        partial_bundle(ggplotly(re4(), tooltip = "text"))
         #plotly_build(ggplotly(re4(), tooltip = "text"))
       })
     }) 
