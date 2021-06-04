@@ -325,11 +325,7 @@ server <- function(input,output,session){
   color_mun <- reactive({
     # create full range spectral DF 
     #wl <- 350:2500
-    #wl <- input$wl_select
-    # wl <- parse(text = input$wl_select)
     wl <- eval(parse_expr(input$wl_select))
-    # wl <- eval(wl)
-    #print(wl)
     nir <- inFile()
     id <- unlist(inFile3()[1])
     dd <- SpectraDataFrame(wl= wl, nir = nir, id = id,
@@ -340,14 +336,18 @@ server <- function(input,output,session){
     # cut to specified wl range
     d <- cut(dd, wl= 380:730)
     
+    # resample from 1nm to 20nm for plotting efficiency
+    d <- apply_spectra(d, prospectr::resample, wl(d), seq(min(wl(d)), max(wl(d)), 10))
+    
     # long format simpler to work with
-    d1 <- melt_spectra(d)
+    #d1 <- melt_spectra(d)
+    a <- melt_spectra(d)
     
     # "round" 1nm -> 10nm resolution
-    d1$v10 <- round(d1$wl, -1)
+    #$v10 <- round(d1$wl, -1)
     
     # aggregate to 10nm res via mean
-    a <- aggregate(nir ~ id + v10, data = d1, FUN = mean)
+    #a <- aggregate(nir ~ id + v10, data = d1, FUN = mean)
     
     # factor
     a$id <- factor(a$id)
@@ -384,8 +384,8 @@ server <- function(input,output,session){
     features(dd, key="id") <- z1
     
     # melt again for plot
-    d2 <- melt_spectra(dd, attr="colr")
-    m1 <- d2
+    m1 <- melt_spectra(dd, attr="colr")
+    #m1 <- d2
     m1
     
     #colr <- m1$colr
@@ -453,16 +453,10 @@ server <- function(input,output,session){
     # apply Savitzky-Golay smoothing filter
     raw <- apply_spectra(raw, sgolayfilt, n = 33, p = 4)
     
-    # could resample here with spectacles methods on the spectral DF
-    #raw <- ???
+    # resample from 1nm to 20nm for plotting efficiency
+    raw <- apply_spectra(raw, prospectr::resample, wl(raw), seq(min(wl(raw)), max(wl(raw)), 20))
     
     m <- melt_spectra(raw, attr = cols)
-    #print(str(m))
-    
-    # resample to lower res for plotting
-    #wav <- as.numeric(length(m$wl))
-    #print(head(wav))
-    #m <- prospectr::resample(m$nir, wav, seq(350, 2500, 2), interpol = 'spline')
     
     })
   
@@ -490,6 +484,9 @@ server <- function(input,output,session){
     
     # apply Savitzky-Golay smoothing filter
     abs <- apply_spectra(abs, sgolayfilt, n = 33, p = 4)
+    
+    # resample from 1nm to 20nm for plotting efficiency
+    abs <- apply_spectra(abs, prospectr::resample, wl(abs), seq(min(wl(abs)), max(wl(abs)), 20))
     
     m <- melt_spectra(abs, attr = cols)
     
@@ -816,7 +813,7 @@ re <- eventReactive(trigger(),{
     })
     output$result_test <- renderPlotly({
       
-      partial_bundle(ggplotly(re3(), tooltip = "text"))
+      ggplotly(re3(), tooltip = "text")
       #plotly_build(ggplotly(re3(), tooltip = "text"))
       
     })
@@ -925,7 +922,7 @@ re <- eventReactive(trigger(),{
     
     output$result_od <- renderPlotly({
       withProgress(message="Generating plot", detail="Please Wait", value=1, { 
-        partial_bundle(ggplotly(re4(), tooltip = "text"))
+        ggplotly(re4(), tooltip = "text")
         #plotly_build(ggplotly(re4(), tooltip = "text"))
       })
     }) 
