@@ -554,7 +554,7 @@ server <- function(input,output,session){
     
     #derive splicings from input format
     sp_ranges <- trimws(input$splice_ranges)
-    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp1 <- str_replace_all(sp_ranges, ',', '), c(')
     sp2 <- str_replace_all(sp1, ':', ', ')
     sp3 <- paste('list(c(', sp2, '))', sep="")
     
@@ -593,7 +593,7 @@ server <- function(input,output,session){
     
     #derive splicings from input format
     sp_ranges <- trimws(input$splice_ranges)
-    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp1 <- str_replace_all(sp_ranges, ',', '), c(')
     sp2 <- str_replace_all(sp1, ':', ', ')
     sp3 <- paste('list(c(', sp2, '))', sep="")
     
@@ -630,7 +630,7 @@ server <- function(input,output,session){
     
     #derive splicings from input format
     sp_ranges <- trimws(input$splice_ranges)
-    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp1 <- str_replace_all(sp_ranges, ',', '), c(')
     sp2 <- str_replace_all(sp1, ':', ', ')
     sp3 <- paste('list(c(', sp2, '))', sep="")
     
@@ -671,7 +671,7 @@ server <- function(input,output,session){
     
     #derive splicings from input format
     sp_ranges <- trimws(input$splice_ranges)
-    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp1 <- str_replace_all(sp_ranges, ',', '), c(')
     sp2 <- str_replace_all(sp1, ':', ', ')
     sp3 <- paste('list(c(', sp2, '))', sep="")
     
@@ -791,7 +791,7 @@ re <- eventReactive(trigger(),{
     
     #derive splicings from input format
     sp_ranges <- trimws(input$splice_ranges)
-    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp1 <- str_replace_all(sp_ranges, ',', '), c(')
     sp2 <- str_replace_all(sp1, ':', ', ')
     sp3 <- paste('list(c(', sp2, '))', sep="")
     
@@ -821,7 +821,7 @@ re <- eventReactive(trigger(),{
     
     #derive splicings from input format
     sp_ranges <- trimws(input$splice_ranges)
-    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp1 <- str_replace_all(sp_ranges, ',', '), c(')
     sp2 <- str_replace_all(sp1, ':', ', ')
     sp3 <- paste('list(c(', sp2, '))', sep="")
     
