@@ -25,9 +25,8 @@ library(rlang)
 library(profvis)
 
 # TODO: sanity check: build in validation so that on import the files are checked for the same number of rows.
-# TODO: sanity check: column picker for id column on the load data tab?
-# TODO: make inputs for the wl bounds (low and high so this can be adjusted to VNIR, MIR or both!
-# TODO: get interactive outliers plot working via plotly
+
+# TODO: make inputs splice correction ranges dependent on the wl range selected
 # TODO: add some hzname aggregation options via genhz logic - possibly a 'Plot Aggregated Spectra' tab
 # aggregate spectra by taking the mean values across spectra within each hzname group
 #d_ag <- aggregate_spectra(d, fun = mean, id = "hzname")
@@ -129,7 +128,14 @@ library(profvis)
                     "VNIR: 350:2500" = paste0(350, ":", 2500), 
                     "MIR: 400:4000" = paste0(400, ":", 4000)),
                     selected = "VNIR: 350:2500"),
+            
+        #column(width = 6,
+        selectInput("splice_ranges", 
+                    "Splice correction ranges", 
+                    choices = c("750:1000, 1830:1950" = "750:1000, 1830:1950"),
+                    selected = "750:1000, 1830:1950"),
             ),
+            #),
 
         column(width = 2,
         checkboxInput("header","Header", TRUE),
@@ -151,12 +157,12 @@ library(profvis)
                  
         uiOutput("checkbox"),
           ),
-          column(width = 4,
-        selectInput("splice_ranges", 
-                    "Splice correction ranges", 
-                    choices = "c(750, 1000), c(1830, 1950)",
-                    selected="c(750, 1000), c(1830, 1950)"),
-          )
+          #column(width = 4,
+        # selectInput("splice_ranges", 
+        #             "Splice correction ranges", 
+        #             choices = "c(750, 1000), c(1830, 1950)",
+        #             selected="c(750, 1000), c(1830, 1950)"),
+          #)
                 )),
         fluidRow(
         tabBox(
@@ -180,7 +186,7 @@ library(profvis)
               column(width = 4,
                 numericInput("SG_n", "filter length",
                              width = "80px", 
-                             value = 33, min = 11, 
+                             value = 23, min = 11, 
                              max = 51, step = 2)
                 ),
                 numericInput("resampling_nm", 
@@ -198,23 +204,33 @@ library(profvis)
         
         tabItem(tabName = "interactive",
               fluidRow(
-                  box(width = 6,
+                  box(width = 12,
                     title = "Options",
                     collapsible = TRUE,
                     solidHeader = TRUE,
-                    status  = "primary",                  
+                    status  = "primary",
+          column(width = 6,         
            radioButtons("radio","Preprocessing Function:",
                 choices = list("Raw Spectra" = "Reflectance",
-                              "Absorbance" = "Absorbance"),
-                selected = "Reflectance"), 
-           
+                              "Absorbance" = "Absorbance",
+                              "Standard Normal Variate Transformation" = "SNV",
+                              "Robust Normal Variate Transformation" = "RNV"),
+                selected = "Reflectance"),
+          
+           numericInput("rnv_perc", 
+                        "Percentile for RNV",
+                        value="0.25", min = 0.05, max = 1, 
+                        step = 0.05),
+          ),
+           column(width = 6,
            checkboxInput("soil_colors",
                          "Apply soil colors", TRUE),
            
+          uiOutput("plotlabel1"),
+           
            downloadButton("download_graph", "Download Graph",
                           class = "dlButton"),
-                   
-                  uiOutput("plotlabel1"),
+                  ),
                   )
                   ),   
              fluidRow(
@@ -459,15 +475,8 @@ server <- function(input,output,session){
     # resample from 1nm to 20nm for plotting efficiency
     d <- apply_spectra(d, prospectr::resample, wl(d), seq(min(wl(d)), max(wl(d)), 10))
     
-    # long format simpler to work with
-    #d1 <- melt_spectra(d)
+    # melt to long format 
     a <- melt_spectra(d)
-    
-    # "round" 1nm -> 10nm resolution
-    #$v10 <- round(d1$wl, -1)
-    
-    # aggregate to 10nm res via mean
-    #a <- aggregate(nir ~ id + v10, data = d1, FUN = mean)
     
     # factor
     a$id <- factor(a$id)
@@ -543,9 +552,15 @@ server <- function(input,output,session){
     
     cols <- dput(names(features(s)[-1]))
     
+    #derive splicings from input format
+    sp_ranges <- trimws(input$splice_ranges)
+    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp2 <- str_replace_all(sp1, ':', ', ')
+    sp3 <- paste('list(c(', sp2, '))', sep="")
+    
     raw <- spectacles::splice(s, 
-              #locations = list(input$splice_ranges))
-             locations = list(c(750, 1000), c(1830, 1950)))
+              locations = eval(parse_expr(sp3)))
+             #locations = list(c(750, 1000), c(1830, 1950)))
     
     # apply Savitzky-Golay smoothing filter
     raw <- apply_spectra(raw, signal::sgolayfilt, n = input$SG_n, p = input$SG_p)
@@ -576,9 +591,15 @@ server <- function(input,output,session){
     
     cols <- dput(names(features(s)[-1]))
     
+    #derive splicings from input format
+    sp_ranges <- trimws(input$splice_ranges)
+    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp2 <- str_replace_all(sp1, ':', ', ')
+    sp3 <- paste('list(c(', sp2, '))', sep="")
+    
     abs <- spectacles::splice(s, 
-                #locations = list(input$splice_ranges))
-                locations = list(c(750, 1000), c(1830, 1950)))
+                locations = eval(parse_expr(sp3)))
+                #locations = list(c(750, 1000), c(1830, 1950)))
     
     # apply Savitzky-Golay smoothing filter
     abs <- apply_spectra(abs, signal::sgolayfilt, n = input$SG_n, p = input$SG_p)
@@ -592,6 +613,88 @@ server <- function(input,output,session){
   }) %>%
     bindCache(input$radio)
   
+  # snv transformation==============================
+  snv <- reactive({
+    req(input$radio == 'SNV')
+    req(!is.null(input$select_var3) || !is.na(input$select_var3))
+    wl <- wl_app()
+    nir <- inFile()
+    id <- id_sel()
+    s <- SpectraDataFrame(wl= wl, 
+                          nir = nir, 
+                          units ="nm",
+                          id = id, 
+                          data = inFile3())
+    
+    cols <- dput(names(features(s)[-1]))
+    
+    #derive splicings from input format
+    sp_ranges <- trimws(input$splice_ranges)
+    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp2 <- str_replace_all(sp1, ':', ', ')
+    sp3 <- paste('list(c(', sp2, '))', sep="")
+    
+    raw <- spectacles::splice(s, 
+                              locations = eval(parse_expr(sp3)))
+                              #locations = list(c(750, 1000), c(1830, 1950)))
+    
+    # apply Savitzky-Golay smoothing filter
+    raw <- apply_spectra(raw, signal::sgolayfilt, n = input$SG_n, p = input$SG_p)
+    
+    # resample from 1nm to 20nm for plotting efficiency
+    raw <- apply_spectra(raw,
+                         prospectr::resample, wl(raw), 
+                         seq(min(wl(raw)), max(wl(raw)), input$resampling_nm))
+    
+    # snv transformation
+    raw <- apply_spectra(raw, spectacles::snv)
+    
+    m <- melt_spectra(raw, attr = cols)
+    
+  }) %>%
+    bindCache(input$radio)
+  
+  # rnv transformation==============================
+  rnv <- reactive({
+    req(input$radio == 'RNV')
+    req(!is.null(input$select_var3) || !is.na(input$select_var3))
+    wl <- wl_app()
+    nir <- inFile()
+    id <- id_sel()
+    s <- SpectraDataFrame(wl= wl, 
+                          nir = nir, 
+                          units ="nm",
+                          id = id, 
+                          data = inFile3())
+    
+    cols <- dput(names(features(s)[-1]))
+    
+    #derive splicings from input format
+    sp_ranges <- trimws(input$splice_ranges)
+    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp2 <- str_replace_all(sp1, ':', ', ')
+    sp3 <- paste('list(c(', sp2, '))', sep="")
+    
+    raw <- spectacles::splice(s, 
+                              locations = eval(parse_expr(sp3)))
+                              #locations = list(c(750, 1000), c(1830, 1950)))
+    
+    # apply Savitzky-Golay smoothing filter
+    raw <- apply_spectra(raw, signal::sgolayfilt, n = input$SG_n, p = input$SG_p)
+    
+    # resample from 1nm to 20nm for plotting efficiency
+    raw <- apply_spectra(raw,
+                         prospectr::resample, wl(raw), 
+                         seq(min(wl(raw)), max(wl(raw)), input$resampling_nm))
+    
+    # rnv transformation
+    raw <- apply_spectra(raw, spectacles::rnv, r=input$rnv_perc)
+    
+    m <- melt_spectra(raw, attr = cols)
+    
+  }) %>%
+    bindCache(input$radio)
+  
   plot <- reactive({
     
     if(input$radio == 'Reflectance'){
@@ -599,6 +702,12 @@ server <- function(input,output,session){
     
     if(input$radio == 'Absorbance'){
       return(absorbance())}
+    
+    if(input$radio == 'SNV'){
+      return(snv())}
+    
+    if(input$radio == 'RNV'){
+      return(rnv())}
   })
   
   trigger <- reactive({
@@ -616,7 +725,7 @@ re <- eventReactive(trigger(),{
     "Sample: ",as.factor(get(lab_name)) , "\n",
     "wl: ", wl, "\n",
     "nir: ", nir, "\n",
-    "variable: ", paste0(input$select_var3, " --- ", as.factor(get(input$select_var3))), "\n",
+    paste0(input$select_var3, ": ", as.factor(get(input$select_var3))), "\n",
     sep = "")), 
     show.legend = TRUE)+
     geom_line(aes(x=wl,y=nir, 
@@ -626,10 +735,6 @@ re <- eventReactive(trigger(),{
     theme_grey()+
     theme(legend.position="bottom", 
           legend.title = element_blank())
-  
-  
-  
-  
   
   
     #TODO: work in better sequence of reactivity here
@@ -684,9 +789,15 @@ re <- eventReactive(trigger(),{
                           id = id, 
                           data = inFile3())
     
+    #derive splicings from input format
+    sp_ranges <- trimws(input$splice_ranges)
+    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp2 <- str_replace_all(sp1, ':', ', ')
+    sp3 <- paste('list(c(', sp2, '))', sep="")
+    
     raw <- spectacles::splice(s,
-        #locations = list(input$splice_ranges))
-        locations = list(c(750, 1000), c(1830, 1950)))
+        locations = eval(parse_expr(sp3)))
+        #locations = list(c(750, 1000), c(1830, 1950)))
     
     # apply Savitzky-Golay smoothing filter
     raw <- apply_spectra(raw, sgolayfilt, n = input$SG_n, p = input$SG_p)
@@ -708,9 +819,15 @@ re <- eventReactive(trigger(),{
                           id = id, 
                           data = inFile3())
     
+    #derive splicings from input format
+    sp_ranges <- trimws(input$splice_ranges)
+    sp1 <- str_replace(sp_ranges, ',', '), c(')
+    sp2 <- str_replace_all(sp1, ':', ', ')
+    sp3 <- paste('list(c(', sp2, '))', sep="")
+    
     abs <- spectacles::splice(s, 
-            #locations = list(input$splice_ranges))
-            locations = list(c(750, 1000), c(1830, 1950)))
+            locations = eval(parse_expr(sp3)))
+            #locations = list(c(750, 1000), c(1830, 1950)))
     
     # apply Savitzky-Golay smoothing filter
     abs <- apply_spectra(abs, sgolayfilt, n = input$SG_n, p = input$SG_p)
@@ -873,7 +990,7 @@ re <- eventReactive(trigger(),{
     output$do2_compon <- renderUI({
       req(input$do2)
       numericInput(inputId = "comp_2","# of components",
-                   value = 1)
+                   value = 1, min = 1, max = input$components)
     })
     
     
@@ -1101,7 +1218,7 @@ re <- eventReactive(trigger(),{
       o$id <- ids(spectras_2)
       
       #o
-      print(o)
+      #print(o)
     })
     
     data_od2 <- reactive({
