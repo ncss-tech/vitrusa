@@ -27,7 +27,7 @@ body<-dashboardBody(
                 verticalLayout(
                     box(fileInput("shpload", "Upload file"), width=12),
                     box(htmlOutput("report"), width=12),
-                    box("This application was developed by John Hammerly and Richard Ried", width=12)
+                    box("This application was developed by John Hammerly and Richard Reid", width=12)
                 )
         )
     )
@@ -44,12 +44,12 @@ server <- function(input, output, session){
     url <- "https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest"
     setProgress(value = .25, message = "unzipping shapefile")
     shpfile <- unzip(isolate(input$shpload$datapath))
-    # shpfile <- unzip("M:/Temp/Shapefile.zip")
-    
-    test <- base64encode(what = shpfile[4])
-    test2 <- base64encode(what = shpfile[6])
-    test3 <- base64encode(what = shpfile[3])
-    test4 <- base64encode(what = shpfile[2])
+    # shpfile <- unzip("M:/Temp/Temp.zip")
+
+    test <- base64encode(what = shpfile[grep(".shp$", shpfile)])
+    test2 <- base64encode(what = shpfile[grep(".shx$", shpfile)])
+    test3 <- base64encode(what = shpfile[grep(".prj$", shpfile)])
+    test4 <- base64encode(what = shpfile[grep(".dbf$", shpfile)])
     setProgress(value = .5, message = "sending file to Soil Data Access")
     r <- POST(url, body = paste0('{"SERVICE":"aoi","REQUEST":"create","AOICOORDS":"shapefile,', test, ",", test2, ",", test3, ",", test4,'"}') , encode = "raw")
     
