@@ -17,7 +17,7 @@ pljs <- "https://cdn.plot.ly/plotly-latest.min.js"
 #create a dashboard header
 
 header<-dashboardHeader(
-  title= span(tagList(img(src="logo.png"), "Region 11 Web App")), titleWidth=250)
+  title= span(tagList(img(src="logo.png"), "North Central Region Web App")), titleWidth=350)
 
 #create a sidebar and menu structure
 
@@ -109,7 +109,7 @@ sidebar<-dashboardSidebar( width = 250,
               menuItem("Project Staff", icon=icon("users"),
                        menuSubItem("Report", tabName="ps", icon=icon("flag-checkered")),
                        textInput(inputId="psso", label="Enter SSO Symbol -", "11"),
-                       textInput(inputId="pfy", label="Enter Fiscal Year", "2019"),
+                       textInput(inputId="pfy", label="Enter Fiscal Year", "2021"),
                        actionButton("pssubmit", "Submit"),br(),p()
               ),
               
@@ -155,9 +155,9 @@ body<-dashboardBody(
   tabItems(
     #Home tab
     tabItem(tabName="Home",
-            titlePanel("Welcome to the Region 11 Web App"),
+            titlePanel("Welcome to the North Central Region Web App"),
             verticalLayout(
-              infoBox("About this App", "The Region 11 Web App is a tool for soil scientists, geographers, and ecologists to get soils information on the web.", width=12, icon=icon("users"), color="blue"),
+              infoBox("About this App", "The North Central Region Web App is a tool for soil scientists, geographers, and ecologists to get soils information on the web.", width=12, icon=icon("users"), color="blue"),
               box(includeHTML("home.html"), width=12),
               box("This application was developed by John Hammerly, Stephen Roecker, and Dylan Beaudette.", width=12)
             )),
@@ -266,7 +266,7 @@ body<-dashboardBody(
   )))
 
 #combine the header, sidebar, and body into a complete page for the user interface
-ui <- dashboardPage(header, sidebar, body, title = "Region 11 Web App")
+ui <- dashboardPage(header, sidebar, body, title = "North Central Region Web App")
 
 #create a function for the server
 server <- function(input, output, session){
@@ -540,7 +540,7 @@ observeEvent(input$reportsubmit,{
     
     mlra <- st_transform(mlra, 4326)
     
-    alsfs1 <- alsfs %>% summarize(geometry = st_union(geometry))
+    alsfs1 <- alsfs %>% dplyr::summarize(geometry = st_union(geometry))
     
     alsfs1 <- st_as_sf(alsfs1)
     
