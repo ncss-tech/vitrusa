@@ -52,9 +52,8 @@ wt <- function(input, output, session){
     
     wtlevels <- get_cosoilmoist_from_SDA(WHERE = paste0(isolate(input$choice),"='", isolate(input$query), "'"), duplicates = TRUE)
     
-    if (input$filltype=="flooding") {wt_plot<-ggplot(wtlevels, aes(x = as.integer(month), y = dept_r, lty = status, group = 1, text = paste("Low:", dept_l, "<br>", "RV:", dept_r, "<br>", "High:", dept_h, "<br>", "Status:", status, "<br>", "Month:", month.abb[as.integer(month)], "<br>", "Flooding Frequency:", flodfreqcl)))+
-        geom_rect(aes(xmin = as.integer(month), xmax = as.integer(month)+
-                        1, ymin = 0, ymax = max(wtlevels$depb_r),fill = flodfreqcl)) +
+    if (input$filltype=="flooding") {wt_plot<-ggplot(wtlevels, aes(x = match(month, month.name), y = dept_r, lty = status, group = 1, text = paste("Low:", dept_l, "<br>", "RV:", dept_r, "<br>", "High:", dept_h, "<br>", "Status:", status, "<br>", "Month:", month.abb[match(month, month.name)], "<br>", "Flooding Frequency:", flodfreqcl)))+
+        geom_rect(aes(xmin = match(month, month.name), xmax = match(month, month.name)+1, ymin = 0, ymax = max(wtlevels$depb_r),fill = flodfreqcl)) +
         geom_line(cex = 1) +
         geom_point() +
         geom_ribbon(aes(ymin = dept_l, ymax = dept_h), alpha = 0.2) +
@@ -67,9 +66,8 @@ wt <- function(input, output, session){
       ggplotly(wt_plot, tooltip = c("text"))
       }
     
-    else if (input$filltype=="ponding") {wt_plot2 <- ggplot(wtlevels, aes(x = as.integer(month), y = dept_r, lty = status, group = 1, text = paste("Low:", dept_l, "<br>", "RV:", dept_r, "<br>", "High:", dept_h, "<br>", "Status:", status, "<br>", "Month:", month.abb[as.integer(month)], "<br>", "Ponding Frequency:", pondfreqcl)))+
-        geom_rect(aes(xmin = as.integer(month), xmax = as.integer(month)+
-                        1, ymin = 0, ymax = max(wtlevels$depb_r),fill = pondfreqcl)) +
+    else if (input$filltype=="ponding") {wt_plot2 <- ggplot(wtlevels, aes(x = match(month, month.name), y = dept_r, lty = status, group = 1, text = paste("Low:", dept_l, "<br>", "RV:", dept_r, "<br>", "High:", dept_h, "<br>", "Status:", status, "<br>", "Month:", month.abb[match(month, month.name)], "<br>", "Ponding Frequency:", pondfreqcl)))+
+        geom_rect(aes(xmin = match(month, month.name), xmax = match(month, month.name)+1, ymin = 0, ymax = max(wtlevels$depb_r),fill = pondfreqcl)) +
         geom_line(cex = 1) +
         geom_point() +
         geom_ribbon(aes(ymin = dept_l, ymax = dept_h), alpha = 0.2) +

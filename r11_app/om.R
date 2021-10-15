@@ -65,7 +65,7 @@ om <- function(input, output, session){
   #render organic matter plot
   output$result<-renderPlotly({ input$submit
     # import soil data using the fetchSDA_component() function
-    omdata = fetchSDA_component(WHERE = paste0(isolate(input$choice),"='", isolate(input$query), "'"), duplicates= TRUE)
+    omdata = fetchSDA(WHERE = paste0(isolate(input$choice),"='", isolate(input$query), "'"), duplicates= TRUE)
     
     # Convert the data for plotting
     omdata_slice <- aqp::slice(omdata, 0:200 ~ om_l + om_r + om_h)
@@ -87,7 +87,7 @@ om <- function(input, output, session){
     })
   
   output$omdatatab<- DT::renderDataTable({input$submit
-    omdata <- fetchSDA_component(WHERE = paste0(isolate(input$choice),"='", isolate(input$query), "'"), duplicates= TRUE);    omdata_slice <- aqp::slice(omdata, 0:200 ~ om_l + om_r + om_h)
+    omdata <- fetchSDA(WHERE = paste0(isolate(input$choice),"='", isolate(input$query), "'"), duplicates= TRUE);    omdata_slice <- aqp::slice(omdata, 0:200 ~ om_l + om_r + om_h)
     h = horizons(omdata_slice)
     h = merge(h, site(omdata)[c("cokey", "compname", "comppct_r")], by = "cokey", all.x = TRUE)}, options = list(paging=FALSE))
   
